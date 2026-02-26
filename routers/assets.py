@@ -1,26 +1,22 @@
+import io
 import mimetypes
-import os, io, uuid, filetype
+import os
+import uuid
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from html import escape
 from zoneinfo import ZoneInfo
+
+import filetype
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
 from rapidfuzz import fuzz
-from sqlalchemy import String, func, or_
-from sqlalchemy.orm import Session
-from background_services.tasks import process_asset_task
-from models.model import ApiResponses, AssetFile
-from routers.auth import _require_csrf, get_current_user
-from utils.config import SUPPORTED_LANGUAGES
-from utils.database import get_db
-from utils.logger import get_logger
-from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.piecharts import Pie
 from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.cidfonts import UnicodeCIDFont
@@ -34,6 +30,15 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from sqlalchemy import String, func, or_
+from sqlalchemy.orm import Session
+
+from background_services.tasks import process_asset_task
+from models.model import ApiResponses, AssetFile
+from routers.auth import _require_csrf, get_current_user
+from utils.config import SUPPORTED_LANGUAGES
+from utils.database import get_db
+from utils.logger import get_logger
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
 MAX_FILES_PER_REQUEST = 10
