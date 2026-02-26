@@ -1,0 +1,59 @@
+{
+  "CallDetails": {
+    "CallType": "string",
+    "AudioEnvironment": "string",
+    "OverallSentiment": "Positive | Neutral | Negative",
+    "Participants": [
+      {
+        "speaker_id":"string",
+        "name": "string",
+        "role": "string"
+      }
+    ],
+    "ResolutionData": {
+      "Status": "Resolved | Unresolved | Pending | Not Applicable",
+      "Reason": "string"
+    },
+    "ChurnRisk": {
+      "Level": "High | Medium | Low | Not Applicable",
+      "Reason": "string"
+    },
+    "Topics": [
+      {
+        "topic": "string",
+        "description": "string"
+      }
+    ],
+    "CallSummary": "string", 
+    "Tasks": [
+      {
+        "description": "string"
+      }
+    ],
+    "TechnicalTerms": [
+      {
+        "term": "string",
+        "explanation": "string"
+      }
+    ],
+    "KeyStrengths": ["string"],
+    "AreasOfImprovement": ["string"],
+    "ExtractedInformation": [
+      {
+        "Key": "string",
+        "Value": "string | array | number | boolean | null"
+      }
+    ],
+    "KeywordCounts": {
+      "<keyword_string>": 0
+    }
+  },
+  "SentenceSentiment": [
+    {
+      "utterance_id": 0,
+      "speaker_id": "string",
+      "text": "string",
+      "sentiment": "Positive | Neutral | Negative"
+    }
+  ]
+}

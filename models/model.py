@@ -1,0 +1,70 @@
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
+from sqlalchemy.orm import relationship
+from utils.database import Base
+from datetime import datetime, timezone
+
+class AuthUser(Base):
+  __tablename__ = 'auth_user'
+
+  file_asset = relationship("AssetFile", back_populates="user",cascade="all, delete-orphan",passive_deletes=True)
+
+  id = Column(Integer, primary_key=True, index=True)
+  first_name=Column(String, nullable=False)
+  last_name=Column(String, nullable=False)
+  mobile_no=Column(String, nullable=False)
+  email=Column(String, unique=True, index=True, nullable=False)
+  password=Column(String, nullable=False)
+
+class AssetFile(Base):
+  __tablename__ = 'asset_file'
+
+  user = relationship("AuthUser", back_populates="file_asset")
+  responses_api = relationship("ApiResponses", back_populates="file_asset", cascade="all, delete-orphan", passive_deletes=True, foreign_keys="ApiResponses.asset_file_id")
+
+  id = Column(Integer, primary_key=True, index=True)
+  status = Column(String, nullable=False, default="processing")
+  filename = Column(String, nullable=False)
+  filepath = Column(String, nullable=False)
+  language = Column(String, nullable=False)
+  call_length = Column(Integer, nullable=False, default=0)
+  created_date_time = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+  modified_date_time = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+  started_at = Column(DateTime(timezone=True), nullable=True)
+  completed_at = Column(DateTime(timezone=True), nullable=True)
+  processing_stage = Column(String, nullable=True)
+  error_reason = Column(String, nullable=True)
+
+
+  user_auth_id = Column(Integer, ForeignKey('auth_user.id', ondelete="CASCADE"), nullable=False)
+
+class ApiResponses(Base):
+  __tablename__ = 'api_responses'
+
+  file_asset = relationship("AssetFile", back_populates="responses_api", foreign_keys="ApiResponses.asset_file_id")
+
+  id = Column(Integer, primary_key=True, index=True)
+
+  # -------- RAW PROVIDER OUTPUTS --------
+  transcript_raw = Column(JSON, nullable=False)
+  assemblyai_raw = Column(JSON, nullable=False)
+  gemini_raw = Column(JSON, nullable=False)
+
+  sentence_sentiment = Column(JSON, nullable=False)
+
+
+  # -------- USAGE / COSTING --------
+  transcription_usage = Column(JSON, nullable=False)
+  llm_usage = Column(JSON, nullable=False)
+
+  # -------- NORMALIZED INTERNAL DATA --------
+  normalized_transcript = Column(JSON, nullable=False)
+  normalized_insights = Column(JSON, nullable=False)
+  performance_metrics = Column(JSON, nullable=False)
+
+  # -------- FINAL MASTER JSON --------
+  master_json = Column(JSON, nullable=False)
+
+  created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+
+  asset_file_id = Column(Integer, ForeignKey('asset_file.id', ondelete="CASCADE"), nullable=False, unique=True)

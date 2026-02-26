@@ -1,0 +1,14 @@
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+  ".venv",
+  "frontend-react",
+  "migrations",
+  "ui",
+  "uploads",
+  "db_models",
+]
+
+[lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
