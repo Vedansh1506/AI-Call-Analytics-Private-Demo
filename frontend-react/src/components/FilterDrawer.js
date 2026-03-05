@@ -30,13 +30,14 @@ const FilterDrawer = ({
   const handleClearAll = () => {
   const cleared = {
     search: "",
+    status: [],
     language: [],
     sentiment: [],
     min_duration: 0,
     max_duration: 7200,
     from_date: null,
     to_date: null,
-    sort_by: "created_date_time",
+    sort_by: "",
     order: "desc",
   };
 
@@ -46,6 +47,13 @@ const FilterDrawer = ({
 
 
   const toggleArrayValue = (key, value) => {
+    if (key === "status") {
+      const current = filters.status || [];
+      const updated = current.includes(value) ? [] : [value];
+      setFilters({ ...filters, status: updated });
+      return;
+    }
+
     const current = filters[key] || [];
     const updated = current.includes(value)
       ? current.filter((v) => v !== value)
@@ -88,6 +96,43 @@ const FilterDrawer = ({
             {filters.order === "asc" ? "↑ Ascending" : "↓ Descending"}
           </Button>
         </Box> */}
+
+        {/* Languages */}
+        <Accordion>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography fontWeight={600}>Status</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <FormGroup
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                columnGap: 2,
+                rowGap: 0.75,
+                "& .MuiFormControlLabel-root": {
+                  m: 0,
+                  width: "100%",
+                },
+                "& .MuiFormControlLabel-label": {
+                  whiteSpace: "nowrap",
+                },
+              }}
+            >
+              {["uploaded", "processing", "completed", "failed"].map((s) => (
+                <FormControlLabel
+                  key={s}
+                  control={
+                    <Checkbox
+                      checked={filters.status?.includes(s)}
+                      onChange={() => toggleArrayValue("status", s)}
+                    />
+                  }
+                  label={s.charAt(0).toUpperCase() + s.slice(1)}
+                />
+              ))}
+            </FormGroup>
+          </AccordionDetails>
+        </Accordion>
 
         {/* Languages */}
         <Accordion>
@@ -254,3 +299,4 @@ const FilterDrawer = ({
 };
 
 export default FilterDrawer;
+

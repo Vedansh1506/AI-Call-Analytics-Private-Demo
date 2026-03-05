@@ -10,16 +10,27 @@ import AssetsList from './components/AssetsList';
 import Analysis from './components/Analysis';
 import { api } from './services/api';
 
+const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
+
 function AppContent() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [idleTimeoutMs, setIdleTimeoutMs] = useState(
+    DEFAULT_IDLE_TIMEOUT_MINUTES * 60 * 1000
+  );
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
-        await api.get("/api/me");
-        if (mounted) setIsAuthenticated(true);
+        const response = await api.get("/api/me");
+        const idleMinutes = Number(response?.data?.frontend_idle_timeout_minutes);
+        if (mounted) {
+          setIsAuthenticated(true);
+          if (Number.isFinite(idleMinutes) && idleMinutes > 0) {
+            setIdleTimeoutMs(idleMinutes * 60 * 1000);
+          }
+        }
       } catch {
         if (mounted) setIsAuthenticated(false);
       } finally {
@@ -40,8 +51,48 @@ function AppContent() {
   return () => window.removeEventListener("auth:expired", onAuthExpired);
 }, []);
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
-  const handleLogin = () => {
+    let timerId = null;
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+
+    const clearTimer = () => {
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+    };
+
+    const logoutOnIdle = async () => {
+      try {
+        await api.post("/auth/logout");
+      } catch {}
+      setIsAuthenticated(false);
+    };
+
+    const resetIdleTimer = () => {
+      clearTimer();
+      timerId = window.setTimeout(logoutOnIdle, idleTimeoutMs);
+    };
+
+    events.forEach((eventName) => window.addEventListener(eventName, resetIdleTimer, { passive: true }));
+    resetIdleTimer();
+
+    return () => {
+      clearTimer();
+      events.forEach((eventName) => window.removeEventListener(eventName, resetIdleTimer));
+    };
+  }, [isAuthenticated, idleTimeoutMs]);
+
+
+  const handleLogin = async () => {
+    try {
+      const response = await api.get("/api/me");
+      const idleMinutes = Number(response?.data?.frontend_idle_timeout_minutes);
+      if (Number.isFinite(idleMinutes) && idleMinutes > 0) {
+        setIdleTimeoutMs(idleMinutes * 60 * 1000);
+      }
+    } catch {}
     setIsAuthenticated(true);
   };
 

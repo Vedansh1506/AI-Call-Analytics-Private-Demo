@@ -37,11 +37,31 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { isDark, toggleTheme } = useThemeContext();
   
   const navigate = useNavigate();
+
+  const passwordChecks = {
+    length: formData.password.length >= 8,
+    upper: /[A-Z]/.test(formData.password),
+    lower: /[a-z]/.test(formData.password),
+    number: /\d/.test(formData.password),
+    special: /[^A-Za-z0-9]/.test(formData.password),
+  };
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
+  const passwordsMatch =
+    formData.confirmPassword.length > 0 && formData.password === formData.confirmPassword;
+
+  const fieldSx = {
+    "& .MuiInputLabel-root": { color: "text.primary" },
+    "& .MuiInputBase-input": { color: "text.primary" },
+    "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+    "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+    "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -62,8 +82,8 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (!isPasswordValid) {
+      setError('Password does not meet all requirements.');
       setLoading(false);
       return;
     }
@@ -95,7 +115,7 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
 
       }
     } catch (err) {
-      setError('Registration failed. Email might already exist.');
+      setError(err?.response?.data?.detail || 'Registration failed. Email might already exist.');
     } finally {
       setLoading(false);
     }
@@ -259,7 +279,16 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                 <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
                   Create Account
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(241, 245, 249, 0.88)"
+                        : "rgba(15, 23, 42, 0.78)",
+                    fontWeight: 500,
+                  }}
+                >
                   Join CallAI and start analyzing your calls
                 </Typography>
               </Box>
@@ -289,10 +318,11 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                     autoComplete="given-name"
                     value={formData.firstName}
                     onChange={handleChange}
+                    sx={fieldSx}
                     InputProps={{
                       startAdornment: (
                         <InputAdornment position="start">
-                          <PersonIcon sx={{ color: 'text.secondary' }} />
+                          <PersonIcon sx={{ color: 'text.primary' }} />
                         </InputAdornment>
                       ),
                     }}
@@ -309,10 +339,11 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                     autoComplete="family-name"
                     value={formData.lastName}
                     onChange={handleChange}
+                    sx={fieldSx}
                     InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <PersonIcon sx={{ color: 'text.secondary' }} />
+                        <PersonIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                   }}
@@ -331,10 +362,11 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleChange}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <EmailIcon sx={{ color: 'text.secondary' }} />
+                        <EmailIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                   }}
@@ -352,10 +384,11 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   autoComplete="tel"
                   value={formData.mobileNo}
                   onChange={handleChange}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <PhoneIcon sx={{ color: 'text.secondary' }} />
+                        <PhoneIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                   }}
@@ -374,10 +407,13 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <LockIcon sx={{ color: 'text.secondary' }} />
+                        <LockIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -386,6 +422,7 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                           aria-label="toggle password visibility"
                           onClick={() => setShowPassword(!showPassword)}
                           edge="end"
+                          sx={{ color: "text.primary" }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -394,6 +431,53 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   }}
                 />
               </motion.div>
+
+              {passwordFocused && (
+                <motion.div variants={itemVariants}>
+                  <Box sx={{ mt: 0.5, mb: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 600,
+                        display: 'block',
+                        mb: 0.5,
+                      }}
+                    >
+                      Must meet all of the following:
+                    </Typography>
+                    {[
+                      ['8 characters minimum', passwordChecks.length],
+                      ['One uppercase letter', passwordChecks.upper],
+                      ['One lowercase letter', passwordChecks.lower],
+                      ['One number', passwordChecks.number],
+                      ['One special character (e.g. !@#$%^&*)', passwordChecks.special],
+                    ].map(([label, ok]) => (
+                      <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, py: 0.15 }}>
+                        <Typography
+                          component="span"
+                          sx={{
+                            width: 14,
+                            textAlign: 'center',
+                            color: ok ? 'success.main' : 'text.secondary',
+                            fontSize: 14,
+                            lineHeight: 1,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {ok ? '✓' : '–'}
+                        </Typography>
+                        <Typography
+                          variant="body2"
+                          sx={{ color: ok ? 'success.main' : 'text.secondary', fontWeight: ok ? 600 : 500 }}
+                        >
+                          {label}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </motion.div>
+              )}
 
               <motion.div variants={itemVariants}>
                 <TextField
@@ -407,14 +491,43 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <LockIcon sx={{ color: 'text.secondary' }} />
+                        <LockIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                   }}
                 />
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <Box sx={{ mt: 0.25, mb: 0.5, minHeight: 24 }}>
+                  {formData.confirmPassword.length > 0 && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Typography
+                        component="span"
+                        sx={{
+                          width: 14,
+                          textAlign: 'center',
+                          color: passwordsMatch ? 'success.main' : 'error.main',
+                          fontSize: 14,
+                          lineHeight: 1,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {passwordsMatch ? '✓' : '✕'}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ color: passwordsMatch ? 'success.main' : 'error.main', fontWeight: 600 }}
+                      >
+                        {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               </motion.div>
 
               <motion.div variants={itemVariants}>
@@ -423,7 +536,7 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   fullWidth
                   variant="contained"
                   size="large"
-                  disabled={loading}
+                  disabled={loading || !isPasswordValid || formData.password !== formData.confirmPassword}
                   sx={{
                     mt: 4,
                     mb: 3,
@@ -455,7 +568,15 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
 
               <motion.div variants={itemVariants}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(241, 245, 249, 0.88)"
+                          : "rgba(15, 23, 42, 0.78)",
+                    }}
+                  >
                     Already have an account?{' '}
                     <Link
                       component="button"

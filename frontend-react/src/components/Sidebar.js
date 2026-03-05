@@ -128,14 +128,14 @@ const Sidebar = ({ onLogout, open, onClose }) => {
                   },
                 }}
               >
-                <ListItemIcon
-                  sx={{
-                    color: isActive
-                      ? theme.palette.primary.main
-                      : theme.palette.text.secondary,
-                    minWidth: 40,
-                  }}
-                >
+                  <ListItemIcon
+                    sx={{
+                      color: isActive
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
+                      minWidth: 40,
+                    }}
+                  >
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText
@@ -144,7 +144,7 @@ const Sidebar = ({ onLogout, open, onClose }) => {
                     fontWeight: isActive ? 600 : 500,
                     color: isActive
                       ? theme.palette.text.primary
-                      : theme.palette.text.secondary,
+                      : theme.palette.text.primary,
                   }}
                 />
               </ListItemButton>
@@ -167,13 +167,13 @@ const Sidebar = ({ onLogout, open, onClose }) => {
             },
           }}
         >
-          <ListItemIcon sx={{ color: theme.palette.text.secondary, minWidth: 40 }}>
+          <ListItemIcon sx={{ color: theme.palette.text.primary, minWidth: 40 }}>
             <LogoutIcon />
           </ListItemIcon>
           <ListItemText
             primary="Logout"
             primaryTypographyProps={{
-              color: theme.palette.text.secondary,
+              color: theme.palette.text.primary,
             }}
           />
         </ListItemButton>

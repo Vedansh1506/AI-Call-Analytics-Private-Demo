@@ -21,6 +21,7 @@ import {
   Cell,
   BarChart,
   Bar,
+  LabelList,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -108,6 +109,9 @@ const [user, setUser] = useState(null);
     : [];
 
   const callsPerDayData = stats?.calls_per_day || [];
+  const languageDistributionData = (stats?.language_distribution || []).filter(
+    (item) => String(item?.name || "").trim().toLowerCase() !== "unknown"
+  );
 
   const keywordData = stats?.top_keywords
     ? Object.entries(stats.top_keywords).map(([name, value]) => ({
@@ -118,6 +122,36 @@ const [user, setUser] = useState(null);
 
   const callTypeData =
   (stats?.call_types || []).sort((a, b) => b.value - a.value);
+  const languageLollipopColor =
+    theme.palette.mode === "light" ? "#0e7490" : "#22d3ee";
+
+const LollipopBar = ({ x, y, width, height, fill }) => {
+  const cy = y + height / 2;
+  const endX = x + width;
+  return (
+    <g>
+      <line x1={x} y1={cy} x2={endX} y2={cy} stroke={fill} strokeWidth={4} strokeLinecap="round" />
+      <circle cx={endX} cy={cy} r={6} fill={fill} />
+    </g>
+  );
+};
+
+const LollipopValueLabel = ({ x, y, width, height, value, fill }) => {
+  if (value === null || value === undefined) return null;
+  return (
+    <text
+      x={x + width + 10}
+      y={y + height / 2}
+      fill={fill}
+      fontSize={12}
+      fontWeight={700}
+      textAnchor="start"
+      dominantBaseline="middle"
+    >
+      {value}
+    </text>
+  );
+};
 
 const renderTreemapContent = ({
   x,
@@ -321,15 +355,16 @@ const CustomTreemapTooltip = ({ active, payload }) => {
       </Grid>
 
       {/* Charts Row */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }} alignItems="stretch">
         {/* Sentiment Distribution Pie Chart */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12} md={6} sx={{display:"flex"}}>
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.4 }}
+            style={{ width: "100%", display: "flex" }}
           >
-            <Card sx={{ height: '100%' , background: "rgba(255,255,255,0.03)" }}>
+            <Card sx={{ height: "100%", width: "100%", minHeight: 380, background: "rgba(255,255,255,0.03)" }}>
               <CardContent sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 1, letterSpacing: 0.3 }}>
                   
@@ -374,8 +409,8 @@ const CustomTreemapTooltip = ({ active, payload }) => {
           </motion.div>
         </Grid>
 
-<Grid item xs={12} md={6}>
-  <Card sx={{ background: "rgba(255,255,255,0.03)" }}>
+<Grid item xs={12} md={6} sx={{display:"flex"}}>
+  <Card sx={{ height: "100%", width: "100%", minHeight: 380, background: "rgba(255,255,255,0.03)" }}>
     <CardContent sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.3 }} gutterBottom>
         Top Keywords
@@ -394,7 +429,7 @@ const CustomTreemapTooltip = ({ active, payload }) => {
   interval={0}
   height={75}
   tick={{ fontSize: 16, fill: theme.palette.text.primary }}
-  tickFormatter={(v) => v.length > 10 ? v.slice(0,10) + "…" : v}
+  tickFormatter={(v) => v.length > 10 ? v.slice(0,10) + "..." : v}
 />
               <YAxis tick={{ fontSize: 16, fill: theme.palette.text.primary}} />
               <Tooltip
@@ -411,13 +446,15 @@ const CustomTreemapTooltip = ({ active, payload }) => {
           </ResponsiveContainer>
         </Box>
       ) : (
-        <Typography>No keyword data</Typography>
+        <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">No keyword data</Typography>
+        </Box>
       )}
     </CardContent>
   </Card>
 </Grid>
 
-        <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
   <Card sx={{ background: "rgba(255,255,255,0.03)" }}>
     <CardContent sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.3 }} gutterBottom>
@@ -455,6 +492,57 @@ const CustomTreemapTooltip = ({ active, payload }) => {
         </Box>
       ) : (
         <Typography>No data available</Typography>
+      )}
+    </CardContent>
+  </Card>
+</Grid>
+
+<Grid item xs={12} md={6}>
+  <Card sx={{ background: "rgba(255,255,255,0.03)" }}>
+    <CardContent sx={{ p: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: 0.3 }} gutterBottom>
+        Language Distribution
+      </Typography>
+
+      {languageDistributionData.length > 0 ? (
+        <Box sx={{ height: 300 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={languageDistributionData.slice(0, 10)}
+              layout="vertical"
+              margin={{ top: 10, right: 64, left: 30, bottom: 10 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+              <XAxis type="number" tick={{ fill: theme.palette.text.primary, fontSize: 13 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={118}
+                interval={0}
+                tick={{ fill: theme.palette.text.primary, fontSize: 16, fontWeight: 500 }}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "#1f2937",
+                  border: "none",
+                  color: "#fff",
+                  borderRadius: 8,
+                }}
+                labelStyle={{ color: "#f8fafc", fontWeight: 700 }}
+                itemStyle={{ color: "#f8fafc" }}
+                formatter={(value) => [`${value}`, "Calls"]}
+              />
+              <Bar dataKey="value" shape={<LollipopBar fill={languageLollipopColor} />}>
+                <LabelList
+                  dataKey="value"
+                  content={<LollipopValueLabel fill={theme.palette.text.primary} />}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+      ) : (
+        <Typography>No language data available</Typography>
       )}
     </CardContent>
   </Card>

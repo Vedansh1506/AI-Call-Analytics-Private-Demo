@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from models.schemas import UserUpdate
 from routers.auth import _require_csrf, get_current_user, get_db
+from utils.config import settings
 
 router = APIRouter(prefix="/api", tags=["APIs"])
 
@@ -12,7 +13,8 @@ def get_me(current_user = Depends(get_current_user)):
         "id": current_user.id,
         "first_name": current_user.first_name,
         "last_name": current_user.last_name,
-        "email": current_user.email
+        "email": current_user.email,
+        "frontend_idle_timeout_minutes": settings.FRONTEND_IDLE_TIMEOUT_MINUTES,
     }
 
 @router.put("/me")

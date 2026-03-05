@@ -37,6 +37,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
   
   const navigate = useNavigate();
 
+  const fieldSx = {
+    "& .MuiInputLabel-root": { color: "text.primary" },
+    "& .MuiInputBase-input": { color: "text.primary" },
+    "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
+    "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+    "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -229,7 +237,16 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                 <Typography variant="h4" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
                   Welcome Back
                 </Typography>
-                <Typography variant="body1" color="text.secondary">
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(241, 245, 249, 0.88)"
+                        : "rgba(15, 23, 42, 0.78)",
+                    fontWeight: 500,
+                  }}
+                >
                   Sign in to continue to CallAI
                 </Typography>
               </Box>
@@ -262,10 +279,11 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                   autoFocus
                   value={formData.email}
                   onChange={handleChange}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <EmailIcon sx={{ color: 'text.secondary' }} />
+                        <EmailIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                   }}
@@ -284,10 +302,11 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                   autoComplete="current-password"
                   value={formData.password}
                   onChange={handleChange}
+                  sx={fieldSx}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <LockIcon sx={{ color: 'text.secondary' }} />
+                        <LockIcon sx={{ color: 'text.primary' }} />
                       </InputAdornment>
                     ),
                     endAdornment: (
@@ -296,6 +315,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                           aria-label="toggle password visibility"
                           onClick={() => setShowPassword(!showPassword)}
                           edge="end"
+                          sx={{ color: "text.primary" }}
                         >
                           {showPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
@@ -343,7 +363,15 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
               <motion.div variants={itemVariants}>
                 <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(241, 245, 249, 0.88)"
+                          : "rgba(15, 23, 42, 0.78)",
+                    }}
+                  >
                     Don't have an account?{' '}
                     <Link
                       component="button"

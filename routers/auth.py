@@ -1,3 +1,4 @@
+import re
 import secrets
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
@@ -31,6 +32,9 @@ _auth_guard_lock = Lock()
 _failed_attempts_by_email = defaultdict(deque)  # email -> deque[datetime]
 _attempts_by_ip = defaultdict(deque)            # ip -> deque[datetime]
 _locked_until_by_email: dict[str, datetime] = {}
+
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_SPECIAL_RE = re.compile(r"[^A-Za-z0-9]")
 
 
 def _now_utc() -> datetime:
@@ -118,6 +122,21 @@ def _require_csrf(
         if not csrf_header or not csrf_cookie or csrf_header != csrf_cookie:
             raise HTTPException(status_code=403, detail="CSRF validation failed")
 
+
+def _validate_password_policy(password: str) -> list[str]:
+    failures: list[str] = []
+    if len(password or "") < PASSWORD_MIN_LENGTH:
+        failures.append(f"At least {PASSWORD_MIN_LENGTH} characters")
+    if not any(c.isupper() for c in password or ""):
+        failures.append("At least one uppercase letter")
+    if not any(c.islower() for c in password or ""):
+        failures.append("At least one lowercase letter")
+    if not any(c.isdigit() for c in password or ""):
+        failures.append("At least one number")
+    if not PASSWORD_SPECIAL_RE.search(password or ""):
+        failures.append("At least one special character")
+    return failures
+
 def get_hashed_password(password: str) -> str:
     return password_context.hash(password)
 
@@ -185,6 +204,13 @@ def register(user:UserRegister, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
+        )
+
+    password_failures = _validate_password_policy(user.password)
+    if password_failures:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password does not meet requirements: " + ", ".join(password_failures),
         )
     
     try:

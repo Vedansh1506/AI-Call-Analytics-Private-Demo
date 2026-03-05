@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON
-from sqlalchemy.orm import relationship
-from utils.database import Base
 from datetime import datetime, timezone
+
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, text
+from sqlalchemy.orm import relationship
+
+from utils.database import Base
+
 
 class AuthUser(Base):
   __tablename__ = 'auth_user'
@@ -35,6 +38,10 @@ class AssetFile(Base):
   processing_stage = Column(String, nullable=True)
   error_reason = Column(String, nullable=True)
 
+  analysis_output_mode = Column(String, nullable=False, default="english")  # english | audio_language
+  transcript_mode = Column(String, nullable=False, default="original")      # original | bilingual
+  target_language = Column(String, nullable=False, default="en")            # en for now
+
 
   user_auth_id = Column(Integer, ForeignKey('auth_user.id', ondelete="CASCADE"), nullable=False)
 
@@ -66,5 +73,7 @@ class ApiResponses(Base):
   master_json = Column(JSON, nullable=False)
 
   created_at = Column(DateTime(timezone=True),default=lambda: datetime.now(timezone.utc))
+
+  analysis_translations = Column(JSON, nullable=False, default=dict, server_default=text("'{}'"),)
 
   asset_file_id = Column(Integer, ForeignKey('asset_file.id', ondelete="CASCADE"), nullable=False, unique=True)

@@ -11,7 +11,7 @@ import {
   Tooltip,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
 } from "@mui/material";
 import { CloudUpload, InfoOutlined, Close } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -30,7 +30,16 @@ const Upload = () => {
     allowed_mime_types: ["audio/mpeg", "audio/wav", "audio/x-wav", "audio/mp4", "audio/ogg", "audio/webm"],
   });
 
+
   const navigate = useNavigate();
+
+  const orderedExtensions = React.useMemo(() => {
+    const preferredOrder = [".m4a", ".mp3", ".mp4", ".ogg", ".wav", ".webm"];
+    const extSet = new Set(constraints.allowed_extensions || []);
+    const preferred = preferredOrder.filter((ext) => extSet.has(ext));
+    const remaining = [...extSet].filter((ext) => !preferredOrder.includes(ext)).sort();
+    return [...preferred, ...remaining];
+  }, [constraints.allowed_extensions]);
 
 
   const fetchSupportedLanguages = async () => {
@@ -151,7 +160,6 @@ const Upload = () => {
 
     try {
       const formData = new FormData();
-
       // IMPORTANT FIX HERE
       files.forEach((file) => {
         formData.append("file", file);
@@ -252,7 +260,7 @@ const Upload = () => {
         </Box>
         {/* allowed types and extensions */}
         <Alert severity="info" sx={{ mt: 2 }}>
-          Allowed formats: {constraints.allowed_extensions.join(", ")} |
+          Allowed formats: {orderedExtensions.join(", ")} |
           Max files per upload: {constraints.max_files_per_request} | 
           Max size per file: {constraints.max_file_size_mb} MB
         </Alert>

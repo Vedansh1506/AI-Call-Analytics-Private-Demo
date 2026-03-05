@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, timezone
-
 from sqlalchemy.orm import Session
-
-from background_services.gemini import gemini_analysis
+from background_services.gemini import gemini_analysis, translate_utterances_to_english
 from background_services.normalization import normalize_speakers
 from background_services.performance_metrics import calc_performance
 from background_services.transcription import transcribe_audio
@@ -12,6 +10,7 @@ from utils.database import SessionLocal
 from utils.logger import get_logger
 
 PROCESSING_STALE_AFTER_MINUTES = 15
+
 logger = get_logger(__name__)
 
 def process_asset(asset_id: int):
@@ -80,17 +79,18 @@ def process_asset(asset_id: int):
             gemini_response = gemini_analysis(
                 transcript_text=speaker_transcript,
                 utterances=transcription["utterances"],
-                lang="en"
+                lang="en",
             )
+
 
             analysis = gemini_response["analysis"]
             llm_usage = gemini_response["llm_usage"]
             
 
-            asset.processing_stage = "normalization"
-            db.commit()
-
             call_details = analysis.get("CallDetails", {})
+            if "OverallSentiment" not in call_details and "Sentiment" in call_details:
+                call_details["OverallSentiment"] = call_details.get("Sentiment")
+            call_details.pop("Sentiment", None)
             sentence_sentiment = analysis.get("SentenceSentiment", [])
             participants = call_details.get("Participants", [])
 
@@ -107,8 +107,7 @@ def process_asset(asset_id: int):
             msg = str(e).lower()
             transient_markers = ["timeout", "temporar", "rate limit", "503", "connection", "unavailable"]
             if any(m in msg for m in transient_markers):
-                raise  # allow Celery autoretry
-
+                logger.warning(f"[asset_id={asset_id}] transient Gemini error treated as failure (no auto-retry configured)")
             return
 
 
@@ -117,6 +116,28 @@ def process_asset(asset_id: int):
             transcription["utterances"],
             participants
         )
+
+        normalized_transcript = {
+            "utterances": normalized_utterances,  # backward compatibility
+            "variants": {
+                "original": {
+                    "language": detected_lang_code,
+                    "utterances": normalized_utterances,
+                }
+            },
+        }
+
+        if detected_lang_code != "en":
+            try:
+
+                translated = translate_utterances_to_english(transcription["utterances"])
+                normalized_translated = normalize_speakers(translated, participants)
+                normalized_transcript["variants"]["en"] = {
+                    "language": "en",
+                    "utterances": normalized_translated,
+                }
+            except Exception:
+                logger.exception(f"[asset_id={asset_id}] English transcript translation failed; continuing with original only")
 
         duration_sec = int(transcription.get("audio_duration_seconds") or 0)
 
@@ -157,7 +178,7 @@ def process_asset(asset_id: int):
                     "duration_seconds": duration_sec
                 },
             "llm": llm_usage
-            }
+            },
         }
 
         existing_response = db.query(ApiResponses).filter(ApiResponses.asset_file_id == asset.id).first()
@@ -181,11 +202,12 @@ def process_asset(asset_id: int):
                 "duration_seconds": duration_sec
             },
             llm_usage=llm_usage,
-            normalized_transcript={"utterances": normalized_utterances},
+            normalized_transcript=normalized_transcript,
             normalized_insights=call_details,
             sentence_sentiment=sentence_sentiment,
             performance_metrics=performance_metrics,
-            master_json=master_json
+            master_json=master_json,
+            analysis_translations={},
         )
 
         db.add(api_response)
@@ -209,7 +231,7 @@ def process_asset(asset_id: int):
                 db.rollback()
                 logger.exception(f"[asset_id={asset_id}] Failed to persist failure state")
         
-        raise
+        return
 
     finally:
         db.close()
