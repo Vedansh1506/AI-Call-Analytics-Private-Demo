@@ -137,4 +137,3 @@ def transcribe_audio(audio_file_path: str) -> dict:
         "language_code": language_code,
         "status": transcript.status,
     }
-   

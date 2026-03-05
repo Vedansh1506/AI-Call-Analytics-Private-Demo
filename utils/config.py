@@ -1,11 +1,16 @@
 from pathlib import Path
 
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent 
 
 class Settings(BaseSettings):
+  model_config = SettingsConfigDict(
+    env_file=BASE_DIR / ".env",
+    extra="ignore",
+  )
+
   DATABASE_URL: str
   SECRET_KEY: str
   ALGORITHM: str
@@ -26,6 +31,7 @@ class Settings(BaseSettings):
   AUTH_RATE_LIMIT_MAX_ATTEMPTS: int = 10
   AUTH_LOCKOUT_SECONDS: int = 900
   AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS: int = 5
+  FRONTEND_IDLE_TIMEOUT_MINUTES: int = 30
 
   @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
   @classmethod
@@ -33,9 +39,6 @@ class Settings(BaseSettings):
     if isinstance(v, str):
         return [x.strip() for x in v.split(",") if x.strip()]
     return v
-
-  class Config:
-    env_file = BASE_DIR / ".env"
 
 settings = Settings()
 

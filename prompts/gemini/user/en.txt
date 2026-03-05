@@ -1,8 +1,3 @@
-# USER PROMPT
-
-Input Data:
-The user will provide a full call transcript as a single conversation.
-
 Call Log:
 $call_log
 
@@ -11,53 +6,34 @@ $utterances_json
 
 Analysis Instructions:
 
-1.
-- Call Type: Classify the nature of the call (e.g., Technical Support, Sales Inquiry, Interview, Refund Request).
-- Audio Environment: Infer background conditions (clarity, noise, interruptions) based on transcript cues.
-- Sentiment: Overall sentiment MUST be derived from the conversation pattern (Positive, Neutral, Negative). Resolution and closing tone strongly influence overall sentiment.
+Call Type: Classify the nature of the call (e.g., Technical Support, Sales Inquiry, Interview, Refund Request).
+Audio Environment: Infer background conditions (clarity, noise, interruptions) based on transcript cues.
+OverallSentiment: Overall sentiment MUST be derived from the conversation pattern (Positive, Neutral, Negative). Resolution and closing tone strongly influence overall sentiment.
 
-2. 
-- Identify all participants.
-- Infer participant roles based on conversational behavior (e.g., Support, Customer, Interviewer, Interviewee, Sales, Supervisor).
-- If names are not explicitly mentioned, use "Unknown".
+Identify all participants by speaker_id.
+Infer participant roles based on conversational behavior (e.g., Customer, Interviewer, Interviewee, Supervisor).
+Use "Unknown" for unavailable names.
 
-3.
-- Resolution Status: Determine whether the primary issue was Resolved, Unresolved, or Pending Action, with a reason.
-- Churn Risk: Estimate churn risk (High, Medium, Low) based on tone and language, with reasoning.
+Resolution Data: Determine if the primary issue was Resolved, Unresolved, Pending, or Not Applicable, with a reason.
+Churn Risk: Estimate churn risk as High, Medium, Low, or Not Applicable based on tone and language, with reasoning.
 
-4. 
-- Main Topics: Identify core topics discussed and describe each.
-- Call Summary: Write a concise summary of key discussion points and outcome.
-- Tasks: Extract actionable next steps.
-- Technical Terms: Identify technical terms and explain them briefly.
+Topics: Identify core topics and describe each.
+Call Summary: Concise summary of key discussion points and outcome.
+Tasks: Extract actionable next steps.
+Technical Terms: Identify technical terms and explain them briefly.
 
-5. 
-- Key Strengths: Positive aspects of the interaction.
-- Areas of Improvement: Shortcomings, missed opportunities, or inefficiencies in the interaction.
+Key Strengths: Positive aspects of the interaction.
+Areas of Improvement: Shortcomings, missed opportunities, or inefficiencies in the interaction.
 
-6. 
-- Extract important structured information (dates, amounts, order details, policies, issues).
-- Support nested structures where applicable.
+Extract important structured information (dates, amounts, order details, policies, issues and others).
+Support nested structures where applicable.
+Do NOT repeat information already covered in Topics.
 
-7. 
-- Extract ONLY industry-relevant semantic keywords that represent: main topics, user intent, problems or requests, products, services, or technical concepts, actionable discussion points
-- Prefer noun phrases or domain terms over single words.  
-- Exclude: person names, greetings, filler words, generic adjectives, common verbs, temporal words, emotionally generic words unless central to context.
-- Do NOT output trivial vocabulary even if frequent.
+Extract ONLY industry-relevant semantic Keywords representing: main topics, user intent, problems or requests, products, services, or technical concepts, actionable discussion points
+Prefer noun phrases or domain terms over single words.  
+Exclude: person names, greetings, filler words, generic adjectives, common verbs, temporal words, emotionally generic words unless central to context.
+Do NOT output trivial vocabulary even if frequent.
 
-8. 
-- For each utterance in the provided utterances JSON, classify sentiment  based on conversational intent.
--Rules:
-  - Do NOT classify only by emotional words.
-  - Detect tone, cooperation, frustration, or success.
-- Do NOT reuse overall sentiment.
-- Output must include utterance_id and sentiment.
-- Each sentence sentiment entry MUST include:
-  utterance_id, speaker_id, text, sentiment
-
-
-Output Rules:
-- Return ONLY valid JSON.
-- Follow the provided schema exactly.
-- Do not omit required fields.
-- Use empty arrays or null values instead of missing keys.
+For each utterance in the provided utterances JSON, classify Sentiment based on conversational intent.
+Base classification on tone, cooperation, frustration, or success — not emotional words alone.
+Each entry MUST include: utterance_id, speaker_id, text, sentiment.

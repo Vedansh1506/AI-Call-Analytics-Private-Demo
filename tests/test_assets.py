@@ -3,7 +3,7 @@ import io
 import routers.assets as assets_router
 
 
-def register_and_login(client, email="asset@example.com", password="secret123"):
+def register_and_login(client, email="asset@example.com", password="Secret@123"):
     payload = {
         "first_name": "Asset",
         "last_name": "User",
@@ -56,3 +56,19 @@ def test_analysis_returns_409_when_not_completed(monkeypatch, client):
 
     check = client.get(f"/assets/{asset_id}/analysis")
     assert check.status_code == 409
+
+def test_upload_ignores_legacy_analysis_mode_field(monkeypatch, client):
+    csrf = register_and_login(client, email="invalidmode@example.com")
+    monkeypatch.setattr(assets_router.process_asset_task, "delay", lambda asset_id: None)
+
+    fake_mp3 = io.BytesIO(b"ID3\x03\x00\x00\x00\x00\x00\x21" + b"\x00" * 1024)
+    files = [("file", ("sample.mp3", fake_mp3, "audio/mpeg"))]
+
+    # Legacy UI clients may still submit this field; upload should remain backward-compatible.
+    r = client.post(
+        "/assets/upload",
+        files=files,
+        data={"analysis_output_mode": "not_valid"},
+        headers={"X-CSRF-Token": csrf},
+    )
+    assert r.status_code == 201

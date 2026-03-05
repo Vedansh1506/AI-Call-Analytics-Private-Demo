@@ -1,4 +1,4 @@
-def register_user(client, email="user1@example.com", password="secret123"):
+def register_user(client, email="user1@example.com", password="Secret@123"):
     payload = {
         "first_name": "Test",
         "last_name": "User",
@@ -9,7 +9,7 @@ def register_user(client, email="user1@example.com", password="secret123"):
     return client.post("/auth/register", json=payload)
 
 
-def login_user(client, email="user1@example.com", password="secret123"):
+def login_user(client, email="user1@example.com", password="Secret@123"):
     return client.post("/auth/login", data={"username": email, "password": password})
 
 
@@ -47,7 +47,7 @@ def test_logout_requires_csrf(client):
 
 
 def test_lockout_after_repeated_failed_logins(client):
-    register_user(client, email="lock@example.com", password="rightpass")
+    register_user(client, email="lock@example.com", password="Right@123")
 
     for _ in range(5):
         bad = login_user(client, email="lock@example.com", password="wrongpass")

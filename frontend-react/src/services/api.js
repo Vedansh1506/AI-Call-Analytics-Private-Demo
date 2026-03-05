@@ -82,13 +82,16 @@ export const assetsAPI = {
       paramsSerializer: (p) => qs.stringify(p, { arrayFormat: "repeat" }),
     }),
   getStats: () => api.get("/assets/stats"),
-  getAnalysis: (assetId) => api.get(`/assets/${assetId}/analysis`),
+  getAnalysis: (assetId, analysisLanguage = "en") =>
+  api.get(`/assets/${assetId}/analysis`, { params: { analysis_language: analysisLanguage } }),
+
   getTranscript: (assetId) => api.get(`/assets/${assetId}/transcript`),
   getSupportedLanguages: () => api.get("/assets/supported-languages"),
   getAudioUrl: (assetId) => `${API_BASE_URL}/assets/${assetId}/audio`,
   getUploadConstraints: () => api.get("/assets/upload-constraints"),
   getTranscriptExportUrl: (assetId, format = "pdf") => `${API_BASE_URL}/assets/${assetId}/export/transcript?format=${encodeURIComponent(format)}`,
-  getAnalysisExportUrl: (assetId, format = "pdf") => `${API_BASE_URL}/assets/${assetId}/export/analysis?format=${encodeURIComponent(format)}`,
+  getAnalysisExportUrl: (assetId, format = "pdf", lang = "en") =>
+  `${API_BASE_URL}/assets/${assetId}/export/analysis?format=${encodeURIComponent(format)}&lang=${encodeURIComponent(lang)}`,
 };
 
 export default api;
