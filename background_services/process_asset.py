@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
+
 from sqlalchemy.orm import Session
+
 from background_services.gemini import gemini_analysis, translate_utterances_to_english
 from background_services.normalization import normalize_speakers
 from background_services.performance_metrics import calc_performance

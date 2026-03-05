@@ -1,7 +1,9 @@
 import time
 from pathlib import Path
+
 import assemblyai as aai
 from aksharamukha.transliterate import process
+
 from utils.config import settings
 
 aai.settings.api_key = settings.ASSEMBLYAI_API_KEY
