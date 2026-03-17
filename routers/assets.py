@@ -6,20 +6,19 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 import filetype
+from background_services.process_asset import process_asset
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
-from rapidfuzz import fuzz
-from sqlalchemy import String, func, or_
-from sqlalchemy.orm import Session
-
-from background_services.process_asset import process_asset
-
 from models.model import ApiResponses, AssetFile
+from rapidfuzz import fuzz
 from routers.auth import _require_csrf, get_current_user
 from routers.functions import _analysis_pdf, _select_insights_view, _transcript_pdf
+from sqlalchemy import String, func, or_
+from sqlalchemy.orm import Session
 from utils.config import SUPPORTED_LANGUAGES
 from utils.database import get_db
 from utils.logger import get_logger
+
 # from background_services.tasks import process_asset_task
 
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
