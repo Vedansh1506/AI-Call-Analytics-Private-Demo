@@ -1,4 +1,5 @@
 import io
+from unittest.mock import patch
 
 import routers.assets as assets_router
 
@@ -30,10 +31,10 @@ def test_upload_enqueues_and_returns_processing(monkeypatch, client):
     csrf = register_and_login(client)
     seen = []
 
-    def fake_delay(asset_id):
+    def fake_process(asset_id):
         seen.append(asset_id)
 
-    monkeypatch.setattr(assets_router.process_asset_task, "delay", fake_delay)
+    monkeypatch.setattr(assets_router, "process_asset", fake_process)
 
     fake_mp3 = io.BytesIO(b"ID3\x03\x00\x00\x00\x00\x00\x21" + b"\x00" * 1024)
     files = [("file", ("sample.mp3", fake_mp3, "audio/mpeg"))]
@@ -46,7 +47,7 @@ def test_upload_enqueues_and_returns_processing(monkeypatch, client):
 
 def test_analysis_returns_409_when_not_completed(monkeypatch, client):
     csrf = register_and_login(client, email="state@example.com")
-    monkeypatch.setattr(assets_router.process_asset_task, "delay", lambda asset_id: None)
+    monkeypatch.setattr(assets_router, "process_asset", lambda asset_id: None)
 
     fake_mp3 = io.BytesIO(b"ID3\x03\x00\x00\x00\x00\x00\x21" + b"\x00" * 1024)
     files = [("file", ("pending.mp3", fake_mp3, "audio/mpeg"))]
@@ -57,14 +58,14 @@ def test_analysis_returns_409_when_not_completed(monkeypatch, client):
     check = client.get(f"/assets/{asset_id}/analysis")
     assert check.status_code == 409
 
+
 def test_upload_ignores_legacy_analysis_mode_field(monkeypatch, client):
     csrf = register_and_login(client, email="invalidmode@example.com")
-    monkeypatch.setattr(assets_router.process_asset_task, "delay", lambda asset_id: None)
+    monkeypatch.setattr(assets_router, "process_asset", lambda asset_id: None)
 
     fake_mp3 = io.BytesIO(b"ID3\x03\x00\x00\x00\x00\x00\x21" + b"\x00" * 1024)
     files = [("file", ("sample.mp3", fake_mp3, "audio/mpeg"))]
 
-    # Legacy UI clients may still submit this field; upload should remain backward-compatible.
     r = client.post(
         "/assets/upload",
         files=files,
