@@ -12,7 +12,10 @@ from rapidfuzz import fuzz
 from sqlalchemy import String, func, or_
 from sqlalchemy.orm import Session
 
-from background_services.tasks import process_asset_task
+# from background_services.tasks import process_asset_task
+from background_services.process_asset import process_asset
+from fastapi import BackgroundTasks
+
 from models.model import ApiResponses, AssetFile
 from routers.auth import _require_csrf, get_current_user
 from routers.functions import _analysis_pdf, _select_insights_view, _transcript_pdf
@@ -38,7 +41,8 @@ async def upload_audio(
     language: str | None = None,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
-    csrf_ok: None = Depends(_require_csrf)
+    csrf_ok: None = Depends(_require_csrf),
+    background_tasks: BackgroundTasks = None
 ):
     if not file:
         raise HTTPException(status_code=400, detail="No files uploaded")
@@ -126,7 +130,9 @@ async def upload_audio(
         logger.info(f"[request_id={request_id}] Asset created with id={asset.id}")
 
         try: 
-            process_asset_task.delay(asset.id)
+            # process_asset_task.delay(asset.id)
+            # process_asset(asset.id)
+            background_tasks.add_task(process_asset, asset.id)
         except Exception as e:
             try:
                 asset.status = "failed"
