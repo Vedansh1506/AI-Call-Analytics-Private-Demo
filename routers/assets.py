@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 import filetype
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, StreamingResponse
 from rapidfuzz import fuzz
 from sqlalchemy import String, func, or_
@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 # from background_services.tasks import process_asset_task
 from background_services.process_asset import process_asset
-from fastapi import BackgroundTasks
 
 from models.model import ApiResponses, AssetFile
 from routers.auth import _require_csrf, get_current_user
