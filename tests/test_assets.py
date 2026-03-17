@@ -1,5 +1,4 @@
 import io
-from unittest.mock import patch
 
 import routers.assets as assets_router
 
