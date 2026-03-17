@@ -6,7 +6,16 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 import filetype
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse, StreamingResponse
 from rapidfuzz import fuzz
 from sqlalchemy import String, func, or_
