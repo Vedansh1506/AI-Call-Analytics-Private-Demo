@@ -12,3 +12,6 @@ extend-exclude = [
 [lint]
 select = ["E", "F", "I"]
 ignore = ["E501"]
+
+[lint.isort]
+known-first-party = ["background_services", "models", "routers", "utils", "tests"]
