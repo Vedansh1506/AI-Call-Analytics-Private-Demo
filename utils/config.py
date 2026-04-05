@@ -19,6 +19,14 @@ class Settings(BaseSettings):
   GEMINI_API_KEY: str
   CELERY_BROKER_URL: str = "redis://localhost:6379/0"
   CELERY_RESULT_BACKEND: str = "redis://localhost:6379/1"
+  SMTP_HOST: str = "smtp.gmail.com"
+  SMTP_PORT: int = 587
+  SMTP_USER: str
+  SMTP_PASSWORD: str
+  SMTP_FROM_NAME: str = "CallAI"
+  GOOGLE_CLIENT_ID: str = ""
+  GOOGLE_CLIENT_SECRET: str = ""
+  GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
 
   UPLOAD_AUDIO_DIR: str = str(BASE_DIR / "uploads" / "audio")
 

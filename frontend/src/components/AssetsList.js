@@ -28,6 +28,8 @@ import { useNavigate } from "react-router-dom";
 import { assetsAPI } from "../services/api";
 import FilterDrawer from "../components/FilterDrawer";
 
+import PageEmptyState from './EmptyState';
+
 const ASSETS_LIST_STATE_KEY = "assets_list_state_v1";
 const DEFAULT_FILTERS = {
   search: "",
@@ -95,6 +97,7 @@ const AssetsList = () => {
   const pollingRef = useRef(null);
   const fetchAssetsRef = useRef(null);
   const theme = useTheme();
+
 
   useEffect(() => {
     try {
@@ -287,6 +290,7 @@ const AssetsList = () => {
             justifyContent: { xs: "flex-start", sm: "flex-end" },
           }}
         >
+
           <TextField
             size="small"
             placeholder="Search filename or transcript"
@@ -433,6 +437,7 @@ const AssetsList = () => {
       </Typography>
 
       {/* Table */}
+
       <TableContainer
         component={Paper}
         sx={{
@@ -530,6 +535,23 @@ const AssetsList = () => {
                     ))}
                   </TableRow>
                 ))
+              : !assets.length
+              ? (
+                  <TableRow>
+                    <TableCell colSpan={6} sx={{ border: 0, p: 0 }}>
+                      <PageEmptyState
+                        variant={appliedFilters.search || appliedFilters.status.length ? 'search' : 'calls'}
+                        description={
+                          appliedFilters.search || appliedFilters.status.length
+                            ? 'No calls match your current filters.'
+                            : 'Upload your first call recording to start analysing.'
+                        }
+                        ctaLabel={appliedFilters.search ? undefined : 'Upload a call'}
+                        ctaPath="/upload"
+                      />
+                    </TableCell>
+                  </TableRow>
+                )
               : assets.map((asset) => (
                   <TableRow
                     key={asset.asset_id}

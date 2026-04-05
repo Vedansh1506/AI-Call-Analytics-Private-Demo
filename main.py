@@ -1,9 +1,10 @@
 import logging
+import uvicorn
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import apis, assets, auth, health
+from routers import apis, assets, auth, health, functions, chat
 from utils.config import settings
 
 logging.getLogger("uvicorn").propagate = True
@@ -24,4 +25,7 @@ app.include_router(auth.router)
 app.include_router(apis.router)
 app.include_router(assets.router)
 app.include_router(health.router)
+app.include_router(chat.router)
 
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

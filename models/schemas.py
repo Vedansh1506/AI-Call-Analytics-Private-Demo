@@ -37,3 +37,39 @@ class TokenValidateResponse(BaseModel):
     message: str
     subject: str | None = None
     expires_at: str | None = None
+
+class ChatTurn(BaseModel):
+    role: str          # "user" or "model"
+    parts: list[dict]  # [{"text": "..."}]
+
+class ChatRequest(BaseModel):
+    message: str
+    session_id: Optional[int] = None  # None = create new session
+
+class ChatResponse(BaseModel):
+    reply: str
+    session_id: int
+
+class ChatSessionCreate(BaseModel):
+    asset_file_id: int
+
+class ChatSessionSummary(BaseModel):
+    id: int
+    title: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    message_count: int
+
+    class Config:
+        from_attributes = True
+
+class ChatSessionDetail(BaseModel):
+    id: int
+    asset_file_id: int
+    title: Optional[str] = None
+    messages: list
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True

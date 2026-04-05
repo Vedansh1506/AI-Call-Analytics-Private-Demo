@@ -1,5 +1,6 @@
 import re
 import secrets
+import httpx
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from threading import Lock
@@ -16,6 +17,8 @@ from models.schemas import TokenValidateRequest, UserRegister
 from utils.config import settings
 from utils.database import get_db
 from utils.logger import get_logger
+from utils.email import send_otp_email
+from utils.otp import generate_otp, store_otp, verify_otp
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
@@ -196,9 +199,11 @@ def get_current_user(
     return user
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-def register(user:UserRegister, db: Session = Depends(get_db)):
+async def register(user: UserRegister, db: Session = Depends(get_db)):
 
-    existing_user = db.query(model.AuthUser).filter(model.AuthUser.email == user.email).first()
+    existing_user = db.query(model.AuthUser).filter(
+        model.AuthUser.email == user.email
+    ).first()
 
     if existing_user:
         raise HTTPException(
@@ -212,32 +217,81 @@ def register(user:UserRegister, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password does not meet requirements: " + ", ".join(password_failures),
         )
-    
+
     try:
         new_user = model.AuthUser(
             first_name=user.first_name,
             last_name=user.last_name,
             mobile_no=user.mobile_no,
             email=user.email,
-            password=get_hashed_password(user.password)
+            password=get_hashed_password(user.password),
+            is_verified="false",
         )
-
         db.add(new_user)
         db.commit()
         db.refresh(new_user)
 
-        
     except SQLAlchemyError:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error while creating user"
         )
-    
+
+    # send verification OTP
+    otp = generate_otp()
+    store_otp(user.email, "verify_email", otp)
+    await send_otp_email(user.email, otp, "verify_email")
+
     return {
         "success": True,
-        "message": "User registered successfully"
+        "message": "Account created. Please check your email for a verification code.",
     }
+
+@router.post("/verify-email")
+async def verify_email(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    body = await request.json()
+    email = (body.get("email") or "").lower().strip()
+    otp   = (body.get("otp") or "").strip()
+
+    if not email or not otp:
+        raise HTTPException(status_code=400, detail="Email and OTP are required")
+
+    ok, reason = verify_otp(email, "verify_email", otp)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    user = db.query(model.AuthUser).filter(model.AuthUser.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_verified = "true"
+    db.commit()
+
+    # auto-login after verification
+    access_token = generate_token(user=user, expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    csrf_token   = secrets.token_urlsafe(32)
+
+    response.set_cookie(
+        key=ACCESS_COOKIE_NAME, value=access_token,
+        httponly=True, secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE, domain=COOKIE_DOMAIN,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/",
+    )
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME, value=csrf_token,
+        httponly=False, secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE, domain=COOKIE_DOMAIN,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/",
+    )
+
+    _audit_auth_event("email_verified", request, email=email, user_id=user.id)
+
+    return {"success": True, "message": "Email verified successfully"}
 
 @router.post("/login")
 def login(request: Request, response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -261,6 +315,12 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
+        )
+    
+    if user.is_verified != "true":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Please verify your email before logging in"
         )
 
     _clear_login_failures(email)
@@ -299,6 +359,27 @@ def login(request: Request, response: Response, form_data: OAuth2PasswordRequest
         "success": True,
         "message": "Login successful"
     }
+
+@router.post("/resend-verification")
+async def resend_verification(request: Request, db: Session = Depends(get_db)):
+    body  = await request.json()
+    email = (body.get("email") or "").lower().strip()
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    user = db.query(model.AuthUser).filter(model.AuthUser.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.is_verified == "true":
+        raise HTTPException(status_code=400, detail="Email already verified")
+
+    otp = generate_otp()
+    store_otp(email, "verify_email", otp)
+    await send_otp_email(email, otp, "verify_email")
+
+    return {"success": True, "message": "OTP resent"}
 
 @router.post("/logout")
 def logout(
@@ -340,3 +421,163 @@ def verify_token(data: TokenValidateRequest):
             "valid":False,
             "message": "Invalid Token!"
         }
+
+@router.post("/forgot-password")
+async def forgot_password(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    body = await request.json()
+    email = (body.get("email") or "").lower().strip()
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+
+    # always return success even if email not found — prevents user enumeration
+    user = db.query(model.AuthUser).filter(model.AuthUser.email == email).first()
+    if user:
+        otp = generate_otp()
+        store_otp(email, "forgot_password", otp)
+        await send_otp_email(email, otp, "forgot_password")
+
+    return {"success": True, "message": "If that email exists, an OTP has been sent"}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    body = await request.json()
+    email    = (body.get("email") or "").lower().strip()
+    otp      = (body.get("otp") or "").strip()
+    new_pass = body.get("new_password") or ""
+
+    if not all([email, otp, new_pass]):
+        raise HTTPException(status_code=400, detail="Email, OTP and new password are required")
+
+    password_failures = _validate_password_policy(new_pass)
+    if password_failures:
+        raise HTTPException(
+            status_code=400,
+            detail="Password does not meet requirements: " + ", ".join(password_failures),
+        )
+
+    ok, reason = verify_otp(email, "forgot_password", otp)
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
+
+    user = db.query(model.AuthUser).filter(model.AuthUser.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password = get_hashed_password(new_pass)
+    db.commit()
+
+    _clear_login_failures(email)
+    _audit_auth_event("password_reset", request, email=email, user_id=user.id)
+
+    return {"success": True, "message": "Password reset successfully"}
+
+@router.get("/google")
+def google_login():
+    """Redirect user to Google OAuth consent screen."""
+    params = {
+        "client_id":     settings.GOOGLE_CLIENT_ID,
+        "redirect_uri":  settings.GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope":         "openid email profile",
+        "access_type":   "offline",
+        "prompt":        "select_account",
+    }
+    query = "&".join(f"{k}={v}" for k, v in params.items())
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{query}")
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+):
+    from fastapi.responses import RedirectResponse as RR
+
+    # Exchange code for tokens
+    async with httpx.AsyncClient() as client:
+        token_resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code":          code,
+                "client_id":     settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "redirect_uri":  settings.GOOGLE_REDIRECT_URI,
+                "grant_type":    "authorization_code",
+            },
+        )
+        token_data = token_resp.json()
+
+        if "error" in token_data:
+            return RR("http://localhost:3000/login?error=google_failed")
+
+        # Get user info from Google
+        user_info_resp = await client.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {token_data['access_token']}"},
+        )
+        user_info = user_info_resp.json()
+
+    google_id = user_info.get("sub")
+    email     = user_info.get("email", "").lower().strip()
+    first     = user_info.get("given_name", "")
+    last      = user_info.get("family_name", "")
+
+    if not email or not google_id:
+        return RR("http://localhost:3000/login?error=google_failed")
+
+    # Find or create user
+    user = db.query(model.AuthUser).filter(model.AuthUser.email == email).first()
+
+    if user:
+        # Existing email user — link Google account
+        if not user.google_id:
+            user.google_id     = google_id
+            user.auth_provider = "google"
+            db.commit()
+    else:
+        # New user via Google
+        user = model.AuthUser(
+            first_name=first,
+            last_name=last,
+            email=email,
+            mobile_no="",
+            password=get_hashed_password(secrets.token_urlsafe(32)),
+            google_id=google_id,
+            auth_provider="google",
+            is_verified="true",  # Google accounts are pre-verified
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    # Issue JWT cookie
+    access_token = generate_token(user=user, expires_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    csrf_token   = secrets.token_urlsafe(32)
+
+    redirect = RR("http://localhost:3000/dashboard")
+    redirect.set_cookie(
+        key=ACCESS_COOKIE_NAME, value=access_token,
+        httponly=True, secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE, domain=COOKIE_DOMAIN,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/",
+    )
+    redirect.set_cookie(
+        key=CSRF_COOKIE_NAME, value=csrf_token,
+        httponly=False, secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE, domain=COOKIE_DOMAIN,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60, path="/",
+    )
+
+    _audit_auth_event("google_login", request, email=email, user_id=user.id)
+    return redirect

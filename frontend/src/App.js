@@ -9,6 +9,7 @@ import Upload from './components/Upload';
 import AssetsList from './components/AssetsList';
 import Analysis from './components/Analysis';
 import { api } from './services/api';
+import Profile from './components/Profile';
 
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
 
@@ -47,9 +48,18 @@ function AppContent() {
     setIsAuthenticated(false);
   };
 
+  
   window.addEventListener("auth:expired", onAuthExpired);
   return () => window.removeEventListener("auth:expired", onAuthExpired);
 }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'google_failed') {
+      // could show a toast here if you have one
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -118,6 +128,7 @@ function AppContent() {
       </Box>
     );
   }
+  
 
    return (
     <Routes>
@@ -193,6 +204,18 @@ function AppContent() {
         path="/"
         element={
           <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          isAuthenticated ? (
+            <Layout onLogout={handleLogout}>
+              <Profile onLogout={handleLogout} />
+            </Layout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
         }
       />
     </Routes>

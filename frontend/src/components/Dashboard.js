@@ -32,6 +32,7 @@ import {
   Treemap
 } from 'recharts';
 import { api } from '../services/api';
+import Skeleton from '@mui/material/Skeleton';
 
 const formatName = (s) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
@@ -249,8 +250,28 @@ const CustomTreemapTooltip = ({ active, payload }) => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-        <Typography color="text.secondary">Loading dashboard…</Typography>
+      <Box>
+        <Skeleton variant="text" width={280} height={44} sx={{ mb: 0.5 }} />
+        <Skeleton variant="text" width={120} height={36} sx={{ mb: 3 }} />
+
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {[1,2,3,4].map(i => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Skeleton variant="rectangular" height={110} sx={{ borderRadius: 2 }} />
+            </Grid>
+          ))}
+        </Grid>
+
+        <Grid container spacing={3}>
+          {[1,2,3,4].map(i => (
+            <Grid item xs={12} md={6} key={i}>
+              <Skeleton variant="rectangular" height={380} sx={{ borderRadius: 2 }} />
+            </Grid>
+          ))}
+          <Grid item xs={12}>
+            <Skeleton variant="rectangular" height={380} sx={{ borderRadius: 2 }} />
+          </Grid>
+        </Grid>
       </Box>
     );
   }
@@ -271,12 +292,12 @@ const CustomTreemapTooltip = ({ active, payload }) => {
     <Typography
       variant="h4"
       sx={{
-        
-        fontWeight: 700,
+        fontSize: 'h4.fontSize',
+        fontWeight: 600,
         mb: 1,
       }}
     >
-      Welcome {formatName(user.first_name)} {formatName(user.last_name)}!
+      👋 Welcome, {formatName(user.first_name)}!
     </Typography>
   )}
 
@@ -285,7 +306,6 @@ const CustomTreemapTooltip = ({ active, payload }) => {
     component="h1"
     sx={{ fontWeight: 700 }}
   >
-    Dashboard
   </Typography>
 </Box>
       </motion.div>
@@ -470,7 +490,7 @@ const CustomTreemapTooltip = ({ active, payload }) => {
         </Box>
       ) : (
         <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography color="text.secondary">No keyword data</Typography>
+          <Typography color="text.secondary">No keyword data available</Typography>
         </Box>
       )}
     </CardContent>
@@ -511,7 +531,9 @@ const CustomTreemapTooltip = ({ active, payload }) => {
           </ResponsiveContainer>
         </Box>
       ) : (
-        <Typography>No data available</Typography>
+        <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">No call data available</Typography>
+        </Box>
       )}
     </CardContent>
   </Card>
@@ -561,7 +583,9 @@ const CustomTreemapTooltip = ({ active, payload }) => {
           </ResponsiveContainer>
         </Box>
       ) : (
-        <Typography>No language data available</Typography>
+        <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">No language data available</Typography>
+        </Box>
       )}
     </CardContent>
   </Card>
@@ -598,7 +622,9 @@ const CustomTreemapTooltip = ({ active, payload }) => {
           </ResponsiveContainer>
         </Box>
       ) : (
-        <Typography>No call type data</Typography>
+        <Box sx={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography color="text.secondary">No call type data available</Typography>
+        </Box>
       )}
     </CardContent>
   </Card>

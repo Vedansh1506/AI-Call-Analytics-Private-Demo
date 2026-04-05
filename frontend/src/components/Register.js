@@ -26,6 +26,7 @@ import { api } from '../services/api';
 import { Brightness4, Brightness7 } from '@mui/icons-material';
 import { useThemeContext } from '../context/ThemeContext';
 import Tooltip from '@mui/material/Tooltip';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
 const Register = ({ onLogin, onSwitchToLogin }) => {
   const [formData, setFormData] = useState({
@@ -36,12 +37,20 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
     password: '',
     confirmPassword: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { isDark, toggleTheme } = useThemeContext();
   
+  const [step, setStep]           = useState('form');  // 'form' | 'otp'
+  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [otp, setOtp]             = useState('');
+  const [otpError, setOtpError]   = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+
   const navigate = useNavigate();
 
   const passwordChecks = {
@@ -72,54 +81,64 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+  e.preventDefault();
+  setLoading(true);
+  setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
-      setLoading(false);
-      return;
-    }
+  if (formData.password !== formData.confirmPassword) {
+    setError('Passwords do not match.');
+    setLoading(false);
+    return;
+  }
+  if (!isPasswordValid) {
+    setError('Password does not meet all requirements.');
+    setLoading(false);
+    return;
+  }
 
-    if (!isPasswordValid) {
-      setError('Password does not meet all requirements.');
-      setLoading(false);
-      return;
-    }
+  try {
+    await api.post('/auth/register', {
+      first_name: formData.firstName,
+      last_name:  formData.lastName,
+      email:      formData.email,
+      mobile_no:  formData.mobileNo,
+      password:   formData.password,
+    });
+    setRegisteredEmail(formData.email);
+    setStep('otp');
+  } catch (err) {
+    setError(err?.response?.data?.detail || 'Registration failed. Email might already exist.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-    try {
-      const response = await api.post('/auth/register', {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
-        email: formData.email,
-        mobile_no: formData.mobileNo,
-        password: formData.password,
-      });
+  const handleVerifyOtp = async (e) => {
+  e.preventDefault();
+  setOtpLoading(true);
+  setOtpError('');
+  try {
+    await api.post('/auth/verify-email', {
+      email: registeredEmail,
+      otp:   otp.trim(),
+    });
+    onLogin();
+    navigate('/dashboard');
+  } catch (err) {
+    setOtpError(err?.response?.data?.detail || 'Invalid OTP. Please try again.');
+  } finally {
+    setOtpLoading(false);
+  }
+};
 
-      if (response.data.success) {
-        // Auto-login after successful registration
-        const loginData = new URLSearchParams();
-        loginData.append("username", formData.email);
-        loginData.append("password", formData.password);
-
-        const loginResponse = await api.post("/auth/login", loginData, {
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          withCredentials: true,
-        });
-
-        if (loginResponse.data.success) {
-          onLogin();
-          navigate("/dashboard");
-        }
-
-      }
-    } catch (err) {
-      setError(err?.response?.data?.detail || 'Registration failed. Email might already exist.');
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleResend = async () => {
+  setResending(true);
+  setOtpError('');
+  try {
+    await api.post('/auth/resend-verification', { email: registeredEmail });
+  } catch {}
+  finally { setResending(false); }
+};
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -140,6 +159,85 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
       transition: { duration: 0.4 },
     },
   };
+
+  // ── OTP verification screen ──────────────────────────────────────────
+  if (step === 'otp') {
+    return (
+      <Box sx={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', p: { xs: 2, sm: 3 },
+        background: (theme) => theme.palette.mode === 'dark'
+          ? 'linear-gradient(135deg,#020617,#020617)'
+          : 'linear-gradient(135deg,#e5e7eb,#f9fafb)',
+        position: 'relative',
+      }}>
+        <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, px: { xs: 0, sm: 2 } }}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Paper elevation={0} sx={{
+              p: { xs: 3, sm: 4 }, borderRadius: 3, maxWidth: 480, mx: 'auto',
+              background: (t) => t.palette.mode === 'dark'
+                ? 'rgba(15,23,42,0.9)' : 'rgba(255,255,255,0.96)',
+              backdropFilter: 'blur(18px)',
+              border: '1px solid rgba(148,163,184,0.35)',
+            }}>
+
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <CheckCircleOutlineIcon sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
+                <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+                  Verify your email
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  We sent a 6-digit code to <strong>{registeredEmail}</strong>
+                </Typography>
+              </Box>
+
+              {otpError && (
+                <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{otpError}</Alert>
+              )}
+
+              <Box component="form" onSubmit={handleVerifyOtp}>
+                <TextField
+                  fullWidth required margin="normal"
+                  label="Enter 6-digit code"
+                  value={otp}
+                  onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  inputProps={{
+                    maxLength: 6,
+                    style: { letterSpacing: 10, fontSize: 26, fontWeight: 700, textAlign: 'center' },
+                  }}
+                  sx={fieldSx}
+                />
+
+                <Button
+                  type="submit" fullWidth variant="contained" size="large"
+                  disabled={otpLoading || otp.length !== 6}
+                  sx={{ mt: 3, mb: 2, py: 1.5 }}
+                >
+                  {otpLoading
+                    ? <CircularProgress size={22} sx={{ color: '#fff' }} />
+                    : 'Verify & Continue'
+                  }
+                </Button>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Didn't receive it?
+                  </Typography>
+                  <Link
+                    component="button" type="button" variant="body2"
+                    onClick={handleResend} disabled={resending}
+                    sx={{ fontWeight: 600, textDecoration: 'none' }}
+                  >
+                    {resending ? 'Sending...' : 'Resend code'}
+                  </Link>
+                </Box>
+              </Box>
+            </Paper>
+          </motion.div>
+        </Container>
+      </Box>
+    );
+  }
 
   return (
     <Box
@@ -192,42 +290,25 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
           zIndex: 1200,
         }}
       >
-        <Tooltip title={isDark ? "Switch to Light" : "Switch to Dark"}>
-          <Box
-            onClick={toggleTheme}
-            sx={{
-              width: 64,
-              height: 32,
-              borderRadius: 20,
-              backgroundColor: isDark ? "#0ea5e9" : "#facc15",
-              display: "flex",
-              alignItems: "center",
-              px: 0.5,
-              cursor: "pointer",
-              transition: "all 0.3s ease",
-            }}
-          >
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                borderRadius: "50%",
-                backgroundColor: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transform: isDark ? "translateX(32px)" : "translateX(0px)",
-                transition: "transform 0.3s ease",
-              }}
-            >
-              {isDark ? (
-                <Brightness7 sx={{ fontSize: 18, color: "#0ea5e9" }} />
-              ) : (
-                <Brightness4 sx={{ fontSize: 18, color: "#f59e0b" }} />
-              )}
-            </Box>
-          </Box>
-        </Tooltip>
+        <Tooltip title={isDark ? 'Light mode' : 'Dark mode'}>
+                    <IconButton
+                      onClick={toggleTheme}
+                      size="small"
+                      sx={{
+                        width: 36, height: 36,
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        color: 'text.secondary',
+                        '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                      }}
+                    >
+                      {isDark
+                        ? <Brightness7 sx={{ fontSize: 18 }} />
+                        : <Brightness4 sx={{ fontSize: 18 }} />
+                      }
+                    </IconButton>
+                  </Tooltip>
       </Box>
       
 
@@ -552,8 +633,8 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
                   size="large"
                   disabled={loading || !isPasswordValid || formData.password !== formData.confirmPassword}
                   sx={{
-                    mt: 4,
-                    mb: 3,
+                    mt: 0,
+                    mb: 0.5,
                     py: 1.5,
                     position: 'relative',
                     overflow: 'hidden',
@@ -581,10 +662,35 @@ const Register = ({ onLogin, onSwitchToLogin }) => {
               </motion.div>
 
               <motion.div variants={itemVariants}>
+                <Box sx={{ position: 'relative', my: 2 }}>
+                  <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ width: '100%', borderTop: '1px solid', borderColor: 'divider' }} />
+                  </Box>
+                  <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                    <Typography variant="caption" sx={{ bgcolor: 'background.paper', px: 1.5, color: 'text.secondary' }}>
+                      OR
+                    </Typography>
+                  </Box>
+                </Box>
+                <Button
+                  fullWidth variant="outlined" size="large"
+                  onClick={() => { window.location.href = 'http://localhost:8000/auth/google'; }}
+                  sx={{
+                    py: 1.3, borderColor: 'divider', color: 'text.primary', gap: 1.5,
+                    '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box component="img" src="https://www.google.com/favicon.ico" alt="Google" sx={{ width: 18, height: 18 }} />
+                  Sign up with Google
+                </Button>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
                 <Box sx={{ textAlign: 'center' }}>
                   <Typography
                     variant="body2"
                     sx={{
+                      mt:1,
                       color: (theme) =>
                         theme.palette.mode === "dark"
                           ? "rgba(241, 245, 249, 0.88)"

@@ -94,4 +94,98 @@ export const assetsAPI = {
   `${API_BASE_URL}/assets/${assetId}/export/analysis?format=${encodeURIComponent(format)}&lang=${encodeURIComponent(lang)}`,
 };
 
+export const sendChatMessage = async (assetId, message, sessionId = null) => {
+  const response = await fetch(`/api/chat/${assetId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, session_id: sessionId }),
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Chat request failed');
+  return response.json();
+};
+
+export const getChatSessions = async (assetId) => {
+  const response = await fetch(`/api/chat/${assetId}/sessions`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch sessions');
+  return response.json(); // [{ id, title, created_at, message_count }, ...]
+};
+
+export const getChatSession = async (sessionId) => {
+  const response = await fetch(`/api/chat/session/${sessionId}`, {
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to fetch session');
+  return response.json(); // { id, messages: [{role, text}], ... }
+};
+
+export const deleteChatSession = async (sessionId) => {
+  const response = await fetch(`/api/chat/session/${sessionId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to delete session');
+  return response.json();
+};
+
+export const getProfile = async () => {
+  const response = await fetch('/api/me', { credentials: 'include' });
+  if (!response.ok) throw new Error('Failed to fetch profile');
+  return response.json();
+};
+
+export const requestChangePasswordOtp = async () => {
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1];
+  const response = await fetch('/api/me/request-change-password-otp', {
+    method: 'POST',
+    headers: { 'X-CSRF-Token': csrf },
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to send OTP');
+  return response.json();
+};
+
+export const changePassword = async (data) => {
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1];
+  const response = await fetch('/api/me/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(data),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Failed to change password');
+  }
+  return response.json();
+};
+
+export const updateProfile = async (data) => {
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1];
+  const response = await fetch('/api/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+    body: JSON.stringify(data),
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const err = await response.json();
+    throw new Error(err.detail || 'Update failed');
+  }
+  return response.json();
+};
+
+export const deleteAccount = async () => {
+  const csrf = document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1];
+  const response = await fetch('/api/me', {
+    method: 'DELETE',
+    headers: { 'X-CSRF-Token': csrf },
+    credentials: 'include',
+  });
+  if (!response.ok) throw new Error('Failed to delete account');
+  return response.json();
+};
+
 export default api;

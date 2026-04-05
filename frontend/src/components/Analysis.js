@@ -28,8 +28,8 @@
   import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
   import CloseIcon from "@mui/icons-material/Close";
 
-  import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-  import PauseIcon from "@mui/icons-material/Pause";
+  import Skeleton from '@mui/material/Skeleton';
+  
   import TextField from "@mui/material/TextField";
   import InputAdornment from "@mui/material/InputAdornment";
   import { useTheme } from "@mui/material/styles";
@@ -37,7 +37,9 @@
   import { useParams, useNavigate } from "react-router-dom";
   import { assetsAPI } from "../services/api";
   import api from "../services/api";
-  import WaveSurfer from "wavesurfer.js";
+
+  import AskAI from './AskAI';
+  import WaveformPlayer from './WaveformPlayer';
 
   // ─── Empty State Component ────────────────────────────────────────────────────
   // Shows a subtle, transparent placeholder when a field has no data.
@@ -91,19 +93,15 @@
     const [currentTime, setCurrentTime] = useState(0);
     const activeRef = React.useRef(null); 
     const [audioSrc, setAudioSrc] = useState(null);
-    const waveformRef = React.useRef(null);
-    const wavesurferRef = React.useRef(null);
-    const [isPlaying, setIsPlaying] = useState(false);
     const lastActiveIndexRef = React.useRef(null);
-    const [playbackRate, setPlaybackRate] = useState(1);
-    const [duration, setDuration] = useState(0);
     const [searchTerm, setSearchTerm] = useState("");
     const [searchMatchPointer, setSearchMatchPointer] = useState(-1);
     const [exportAnchorEl, setExportAnchorEl] = useState(null);
     const [selectedTranscriptVariant, setSelectedTranscriptVariant] = useState("original");
     const [analysisLanguage, setAnalysisLanguage] = useState("en");
     const analysisCacheRef = React.useRef({});
-
+    const waveformPlayerRef = React.useRef(null);
+    
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
 
@@ -188,53 +186,10 @@
     };
   }, [assetId]);
 
-
-    useEffect(() => {
-    if (!audioSrc || tabValue !== 4) return;
-    if (!waveformRef.current) return;
-
-    if (wavesurferRef.current) {
-      wavesurferRef.current.destroy();
-      wavesurferRef.current = null;
-    }
-
-    const ws = WaveSurfer.create({
-      container: waveformRef.current,
-      waveColor: "#94a3b8",
-      progressColor: "#3b82f6",
-      cursorColor: "#3b82f6",
-      height: 100,
-      responsive: true,
-      barWidth: 2,
-      barGap: 2,
-    });
-
-    wavesurferRef.current = ws;
-
-    ws.load(audioSrc);
-
-    ws.on("ready", () => {
-      setDuration(ws.getDuration());
-    });
-
-    ws.on("play", () => setIsPlaying(true));
-    ws.on("pause", () => setIsPlaying(false));
-    ws.on("finish", () => setIsPlaying(false));
-
-    ws.on("audioprocess", () => {
-      setCurrentTime(ws.getCurrentTime() * 1000);
-    });
-
-    ws.on("seek", () => {
-      setCurrentTime(ws.getCurrentTime() * 1000);
-    });
-
-    return () => {
-      ws.destroy();
-      wavesurferRef.current = null;
-    };
-  }, [audioSrc, tabValue]);
-
+  const handleTimeUpdate = useCallback((ms) => {
+    setCurrentTime(ms);
+  }, []);
+  
   const performanceMetrics = analysis?.performance_metrics || {};
   const talkRaw = performanceMetrics?.RawTalkTimeMs || {};
   const callDuration = performanceMetrics?.TotalCallDuration;
@@ -499,19 +454,6 @@ const formatTalkRatioValue = (value) => {
     }
   }, [activeIndex]);
 
-  const togglePlay = () => {
-    if (!wavesurferRef.current) return;
-
-    wavesurferRef.current.playPause();
-    setIsPlaying(wavesurferRef.current.isPlaying());
-  };
-
-  const formatTime = (sec) => {
-    const m = Math.floor(sec / 60);
-    const s = Math.floor(sec % 60);
-    return `${m}:${s.toString().padStart(2,"0")}`;
-  };
-
     const formatDuration = (seconds) => {
       if (!seconds) return null;
       const h = Math.floor(seconds / 3600);
@@ -587,8 +529,21 @@ const formatTalkRatioValue = (value) => {
 
     if (loading || (analysisLoading && !analysis)) {
       return (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "40vh" }}>
-          <Typography color="text.secondary">Loading analysis…</Typography>
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, mt: 1 }}>
+            <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
+          </Box>
+          <Skeleton variant="text" width="40%" height={40} sx={{ mb: 0.5 }} />
+          <Skeleton variant="text" width="60%" height={24} sx={{ mb: 3 }} />
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {[1,2,3,4].map(i => (
+              <Grid item xs={12} sm={6} md={3} key={i}>
+                <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
+              </Grid>
+            ))}
+          </Grid>
+          <Skeleton variant="rectangular" height={48} sx={{ borderRadius: 1, mb: 1 }} />
+          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
         </Box>
       );
     }
@@ -813,6 +768,7 @@ const formatTalkRatioValue = (value) => {
             <Tab label="Sentiment Analysis" />
             <Tab label="Transcript" />
             <Tab label="Analytics" />
+            <Tab label="Ask AI" />
           </Tabs>
 
           {/* ════════════════════════════════════════
@@ -1167,60 +1123,12 @@ const formatTalkRatioValue = (value) => {
           </Tooltip>
         </Box>
       </Box>
-      {/* Audio Player */}
-    <Box
-    sx={{
-      backgroundColor: theme.palette.background.paper,
-  border: `1px solid ${theme.palette.divider}`,
-      borderRadius: 2,
-        p: 2,
-        mb: 3
-    }}
-  >
-    
-
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-    
-    <Button variant="contained" onClick={togglePlay} sx={{ minWidth: 40 }}>
-      {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-    </Button>
-
-    <Select
-      size="small"
-      value={playbackRate}
-      onChange={(e) => {
-        const rate = Number(e.target.value);
-        setPlaybackRate(rate);
-        wavesurferRef.current?.setPlaybackRate(rate);
-      }}
-    >
-      <MenuItem value={0.25}>0.25x</MenuItem>
-      <MenuItem value={0.5}>0.5x</MenuItem>
-      <MenuItem value={0.75}>0.75x</MenuItem>
-      <MenuItem value={1}>1x</MenuItem>
-      <MenuItem value={1.25}>1.25x</MenuItem>
-      <MenuItem value={1.5}>1.5x</MenuItem>
-      <MenuItem value={2}>2x</MenuItem>
-    </Select>
-
-    <Typography variant="body2" color="text.secondary">
-      {formatTime(currentTime/1000)} / {formatTime(duration)}
-    </Typography>
-
-  </Box>
-
-    <Box
-      ref={waveformRef}
-      sx={{
-        width: "100%",
-        height: 100,
-        borderRadius: 2,
-        bgcolor: theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)",
-      }}
+    {/* Audio Player with sentiment overlay */}
+    <WaveformPlayer
+      ref={waveformPlayerRef}
+      audioSrc={audioSrc}
+      onTimeUpdate={handleTimeUpdate}
     />
-  </Box>
-
-
       {/* Transcript */}
       <Box sx={{ flex: 1, overflowY: "auto", pr: 1 }}>
       {isEmpty(utterances) ? (
@@ -1238,13 +1146,8 @@ const formatTalkRatioValue = (value) => {
               id={`utt-${i}`}
               ref={isActive ? activeRef : null}
               onClick={() => {
-                if (!wavesurferRef.current) return;
-                const duration = wavesurferRef.current.getDuration();
-                if (!duration) return;
-
-
-    wavesurferRef.current.seekTo(u.start / 1000 / duration);
-  }}
+                waveformPlayerRef.current?.seekTo(u.start);
+              }}
 
 
               sx={{
@@ -1402,6 +1305,7 @@ const formatTalkRatioValue = (value) => {
       </Box>
     </Box>
   </Grid>
+  
               </Grid>
 
             </CardContent>
@@ -1527,8 +1431,14 @@ const formatTalkRatioValue = (value) => {
     </Box>
   )}
 
-
-
+{/* ════════════════════════════════════════
+            TAB 6 — Ask AI
+        ════════════════════════════════════════ */}
+        {tabValue === 6 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <AskAI assetId={assetId} fileName={analysis.filename} />
+          </Box>
+        )}
                     
         </Paper>
       </Box>

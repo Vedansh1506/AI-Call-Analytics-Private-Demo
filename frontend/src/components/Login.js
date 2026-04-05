@@ -24,6 +24,7 @@ import { api } from '../services/api';
 import { Brightness4, Brightness7 } from '@mui/icons-material';
 import { useThemeContext } from '../context/ThemeContext';
 import Tooltip from '@mui/material/Tooltip';
+import ForgotPassword from './ForgotPassword';
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
   const [formData, setFormData] = useState({
@@ -34,7 +35,8 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { isDark, toggleTheme } = useThemeContext();
-  
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   const navigate = useNavigate();
 
   const fieldSx = {
@@ -100,6 +102,10 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
     },
   };
 
+  if (showForgotPassword) {
+    return <ForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <Box
       sx={{
@@ -150,42 +156,26 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
     zIndex: 1200,
   }}
 >
-  <Tooltip title={isDark ? "Switch to Light" : "Switch to Dark"}>
-    <Box
-      onClick={toggleTheme}
-      sx={{
-        width: 64,
-        height: 32,
-        borderRadius: 20,
-        backgroundColor: isDark ? "#0ea5e9" : "#facc15",
-        display: "flex",
-        alignItems: "center",
-        px: 0.5,
-        cursor: "pointer",
-        transition: "all 0.3s ease",
-      }}
-    >
-      <Box
-        sx={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          backgroundColor: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          transform: isDark ? "translateX(32px)" : "translateX(0px)",
-          transition: "transform 0.3s ease",
-        }}
-      >
-        {isDark ? (
-          <Brightness7 sx={{ fontSize: 18, color: "#0ea5e9" }} />
-        ) : (
-          <Brightness4 sx={{ fontSize: 18, color: "#f59e0b" }} />
-        )}
-      </Box>
-    </Box>
-  </Tooltip>
+
+<Tooltip title={isDark ? 'Light mode' : 'Dark mode'}>
+            <IconButton
+              onClick={toggleTheme}
+              size="small"
+              sx={{
+                width: 36, height: 36,
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                color: 'text.secondary',
+                '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+              }}
+            >
+              {isDark
+                ? <Brightness7 sx={{ fontSize: 18 }} />
+                : <Brightness4 sx={{ fontSize: 18 }} />
+              }
+            </IconButton>
+          </Tooltip>
 </Box>
 
 
@@ -366,6 +356,58 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                   ) : (
                     'Sign In'
                   )}
+                </Button>
+              </motion.div>
+
+              <motion.div variants={itemVariants}>
+                <Box sx={{ textAlign: 'right', mt: -2 }}>
+                  <Link
+                    component="button"
+                    type="button"
+                    variant="body2"
+                    onClick={() => setShowForgotPassword(true)}
+                    sx={{ fontWeight: 500, textDecoration: 'none', color: (theme) =>
+                        theme.palette.mode === "dark"
+                          ? "rgba(241, 245, 249, 0.88)"
+                          : "rgba(15, 23, 42, 0.78)",
+                      '&:hover': { color: 'primary.main' } }}
+                  >
+                    Forgot password?
+                  </Link>
+                </Box>
+
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <Box sx={{ position: 'relative', my: 2 }}>
+                  <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+                    <Box sx={{ width: '100%', borderTop: `1px solid`, borderColor: 'divider' }} />
+                  </Box>
+                  <Box sx={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+                    <Typography variant="caption" sx={{ bgcolor: 'background.paper', px: 1.5, color: 'text.secondary' }}>
+                      OR
+                    </Typography>
+                  </Box>
+                </Box>
+
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="large"
+                  onClick={() => { window.location.href = 'http://localhost:8000/auth/google'; }}
+                  sx={{
+                    mb: 2, py: 1.3,
+                    borderColor: 'divider',
+                    color: 'text.primary',
+                    gap: 1.5,
+                    '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                  }}
+                >
+                  <Box component="img"
+                    src="https://www.google.com/favicon.ico"
+                    alt="Google"
+                    sx={{ width: 18, height: 18 }}
+                  />
+                  Continue with Google
                 </Button>
               </motion.div>
 
