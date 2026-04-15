@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box, Typography, Button, Alert, LinearProgress,
-  IconButton, List, ListItem, ListItemText, useTheme,
+  IconButton, useTheme,
 } from '@mui/material';
 import { CloudUpload as UploadIcon, Close, InfoOutlined } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';

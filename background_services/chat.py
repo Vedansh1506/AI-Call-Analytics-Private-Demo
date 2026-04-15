@@ -1,7 +1,7 @@
 import os
-import json
-import google.generativeai as genai
 from pathlib import Path
+
+import google.generativeai as genai
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 

@@ -22,7 +22,6 @@ const formatName = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 // ── Stat card ──────────────────────────────────────────────────────────────
 const StatCard = ({ title, value, icon, accent, delay }) => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   return (
     <motion.div

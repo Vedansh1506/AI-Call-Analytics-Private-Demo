@@ -14,7 +14,6 @@ import PageEmptyState from './EmptyState';
 import SearchIcon from '@mui/icons-material/Search';
 import InputAdornment from '@mui/material/InputAdornment';
 import CloseIcon from '@mui/icons-material/Close';
-import qs from 'qs';
 
 const ASSETS_LIST_STATE_KEY = 'assets_list_state_v1';
 const DEFAULT_FILTERS = {
@@ -79,7 +78,6 @@ const AssetsList = () => {
   const pollingRef    = useRef(null);
   const fetchAssetsRef = useRef(null);
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
 
   useEffect(() => {
     try {

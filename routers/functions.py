@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.piecharts import Pie
-from reportlab.graphics.shapes import Drawing, Rect
+from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -287,14 +287,22 @@ def _structured_bullet_lines(data, depth: int = 0) -> list[tuple[int, str]]:
 def _pick_font(text: str, fonts: dict[str, str]) -> str:
     for ch in (text or ""):
         cp = ord(ch)
-        if 0x0600 <= cp <= 0x06FF: return fonts["arabic"]
-        if 0x0590 <= cp <= 0x05FF: return fonts["hebrew"]
-        if 0x0900 <= cp <= 0x097F: return fonts["devanagari"]
-        if 0x0A80 <= cp <= 0x0AFF: return fonts["gujarati"]
-        if 0x0B80 <= cp <= 0x0BFF: return fonts["tamil"]
-        if 0x4E00 <= cp <= 0x9FFF: return fonts["cjk_sc"]
-        if 0x3040 <= cp <= 0x30FF: return fonts["cjk_jp"]
-        if 0xAC00 <= cp <= 0xD7AF: return fonts["cjk_kr"]
+        if 0x0600 <= cp <= 0x06FF:
+            return fonts["arabic"]
+        if 0x0590 <= cp <= 0x05FF:
+            return fonts["hebrew"]
+        if 0x0900 <= cp <= 0x097F:
+            return fonts["devanagari"]
+        if 0x0A80 <= cp <= 0x0AFF: 
+            return fonts["gujarati"]
+        if 0x0B80 <= cp <= 0x0BFF: 
+            return fonts["tamil"]
+        if 0x4E00 <= cp <= 0x9FFF: 
+            return fonts["cjk_sc"]
+        if 0x3040 <= cp <= 0x30FF:
+            return fonts["cjk_jp"]
+        if 0xAC00 <= cp <= 0xD7AF: 
+            return fonts["cjk_kr"]
     return fonts["regular"]
 
 
@@ -1046,25 +1054,36 @@ def _normalize_insights_keys(insights: dict) -> dict:
 
     def _canon_sentiment(value):
         v = str(value or "").strip().lower()
-        if v == "positive": return "Positive"
-        if v == "negative": return "Negative"
-        if v == "neutral":  return "Neutral"
+        if v == "positive": 
+            return "Positive"
+        if v == "negative": 
+            return "Negative"
+        if v == "neutral":  
+            return "Neutral"
         return "Unknown"
 
     def _canon_resolution(value):
         v = str(value or "").strip().lower()
-        if v == "resolved":   return "Resolved"
-        if v == "unresolved": return "Unresolved"
-        if v == "pending":    return "Pending"
-        if v in {"not applicable","not-applicable","non applicable","n/a","na"}: return "Not Applicable"
+        if v == "resolved":  
+            return "Resolved"
+        if v == "unresolved":
+            return "Unresolved"
+        if v == "pending":   
+            return "Pending"
+        if v in {"not applicable","not-applicable","non applicable","n/a","na"}: 
+            return "Not Applicable"
         return "Unknown"
 
     def _canon_churn(value):
         v = str(value or "").strip().lower()
-        if v == "high":   return "High"
-        if v == "medium": return "Medium"
-        if v == "low":    return "Low"
-        if v in {"not applicable","not-applicable","non applicable","n/a","na"}: return "Not Applicable"
+        if v == "high":  
+            return "High"
+        if v == "medium": 
+            return "Medium"
+        if v == "low":   
+            return "Low"
+        if v in {"not applicable","not-applicable","non applicable","n/a","na"}:
+            return "Not Applicable"
         return "Unknown"
 
     if "OverallSentiment" not in insights and "Sentiment" in insights:
@@ -1087,8 +1106,10 @@ def _normalize_insights_keys(insights: dict) -> dict:
 
 
 def _merge_canonical_enums(translated: dict, canonical: dict) -> dict:
-    if not isinstance(translated, dict): return translated
-    if not isinstance(canonical, dict):  return translated
+    if not isinstance(translated, dict):
+        return translated
+    if not isinstance(canonical, dict): 
+        return translated
     out = dict(translated)
     if "OverallSentiment" in canonical:
         out["OverallSentiment"] = canonical.get("OverallSentiment")

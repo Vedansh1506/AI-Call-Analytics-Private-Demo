@@ -2,7 +2,7 @@ import React, {
   useEffect, useRef, useState, forwardRef, useImperativeHandle,
 } from 'react';
 import WaveSurfer from 'wavesurfer.js';
-import { Box, Typography, Button, Select, MenuItem, useTheme, Slider } from '@mui/material';
+import { Box, Typography, Select, MenuItem, useTheme } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 

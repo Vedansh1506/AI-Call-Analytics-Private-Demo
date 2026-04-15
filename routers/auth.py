@@ -1,10 +1,10 @@
 import re
 import secrets
-import httpx
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 
+import httpx
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import ExpiredSignatureError, JWTError, jwt
@@ -16,8 +16,8 @@ from models import model
 from models.schemas import TokenValidateRequest, UserRegister
 from utils.config import settings
 from utils.database import get_db
-from utils.logger import get_logger
 from utils.email import send_otp_email
+from utils.logger import get_logger
 from utils.otp import generate_otp, store_otp, verify_otp
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])

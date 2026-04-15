@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, IconButton, useTheme, useMediaQuery, Tooltip, Typography } from '@mui/material';
+import { Box, IconButton, useTheme, useMediaQuery, Tooltip } from '@mui/material';
 import { Menu as MenuIcon, LightMode, DarkMode } from '@mui/icons-material';
 import Sidebar, { DRAWER_WIDTH_OPEN, DRAWER_WIDTH_CLOSED } from './Sidebar';
 import { useThemeContext } from '../context/ThemeContext';

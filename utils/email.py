@@ -1,6 +1,7 @@
-import aiosmtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+import aiosmtplib
 
 from utils.config import settings
 from utils.logger import get_logger

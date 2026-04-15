@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, text, func
-from sqlalchemy.orm import relationship
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, Integer, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import relationship
 
 from utils.database import Base
 

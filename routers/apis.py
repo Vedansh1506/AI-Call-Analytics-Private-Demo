@@ -2,9 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from routers.auth import (
-    _require_csrf, get_current_user, get_db,
-    get_hashed_password, verify_password, _validate_password_policy,
-    ACCESS_COOKIE_NAME, CSRF_COOKIE_NAME, COOKIE_DOMAIN,
+    ACCESS_COOKIE_NAME,
+    COOKIE_DOMAIN,
+    CSRF_COOKIE_NAME,
+    _validate_password_policy,
+    get_current_user,
+    get_db,
+    get_hashed_password,
+    verify_password,
 )
 from utils.config import settings
 from utils.email import send_otp_email
@@ -36,9 +41,12 @@ async def update_profile(
     last_name  = body.get("last_name",  "").strip()
     mobile_no  = body.get("mobile_no",  "").strip()
 
-    if first_name: current_user.first_name = first_name
-    if last_name:  current_user.last_name  = last_name
-    if mobile_no:  current_user.mobile_no  = mobile_no
+    if first_name: 
+        current_user.first_name = first_name
+    if last_name:  
+        current_user.last_name  = last_name
+    if mobile_no:  
+        current_user.mobile_no  = mobile_no
 
     db.commit()
     db.refresh(current_user)

@@ -1,10 +1,10 @@
 import logging
-import uvicorn
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import apis, assets, auth, health, functions, chat
+from routers import apis, assets, auth, chat, health
 from utils.config import settings
 
 logging.getLogger("uvicorn").propagate = True
