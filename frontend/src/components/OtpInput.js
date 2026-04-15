@@ -2,34 +2,27 @@ import React, { useRef } from 'react';
 import { Box, useTheme } from '@mui/material';
 
 const OtpInput = ({ length = 6, value, onChange, disabled = false }) => {
-  const theme   = useTheme();
-  const refs    = useRef([]);
-  const digits  = value.split('').concat(Array(length).fill('')).slice(0, length);
+  const theme  = useTheme();
+  const isDark = theme.palette.mode === 'dark';
+  const amber  = theme.palette.primary.main;
+  const refs   = useRef([]);
+  const digits = value.split('').concat(Array(length).fill('')).slice(0, length);
 
   const focus = (i) => refs.current[i]?.focus();
 
   const handleChange = (e, i) => {
     const val = e.target.value.replace(/\D/g, '').slice(-1);
-    const arr = [...digits];
-    arr[i]    = val;
+    const arr = [...digits]; arr[i] = val;
     onChange(arr.join(''));
     if (val && i < length - 1) focus(i + 1);
   };
 
   const handleKeyDown = (e, i) => {
     if (e.key === 'Backspace') {
-      if (digits[i]) {
-        const arr = [...digits];
-        arr[i]    = '';
-        onChange(arr.join(''));
-      } else if (i > 0) {
-        focus(i - 1);
-      }
-    } else if (e.key === 'ArrowLeft' && i > 0) {
-      focus(i - 1);
-    } else if (e.key === 'ArrowRight' && i < length - 1) {
-      focus(i + 1);
-    }
+      if (digits[i]) { const arr = [...digits]; arr[i] = ''; onChange(arr.join('')); }
+      else if (i > 0) focus(i - 1);
+    } else if (e.key === 'ArrowLeft'  && i > 0)            focus(i - 1);
+    else if  (e.key === 'ArrowRight' && i < length - 1)   focus(i + 1);
   };
 
   const handlePaste = (e) => {
@@ -40,7 +33,7 @@ const OtpInput = ({ length = 6, value, onChange, disabled = false }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', my: 1 }}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', my: 1.5 }}>
       {Array.from({ length }).map((_, i) => (
         <Box
           key={i}
@@ -56,27 +49,30 @@ const OtpInput = ({ length = 6, value, onChange, disabled = false }) => {
           onPaste={handlePaste}
           onFocus={e => e.target.select()}
           sx={{
-            width: 48,
-            height: 56,
+            width: 44, height: 52,
             textAlign: 'center',
-            fontSize: '1.5rem',
-            fontWeight: 700,
-            fontFamily: 'monospace',
-            border: `2px solid`,
-            borderColor: digits[i]
-              ? theme.palette.primary.main
-              : theme.palette.divider,
-            borderRadius: 2,
-            bgcolor: 'background.paper',
-            color: 'text.primary',
+            fontSize: '1.35rem',
+            fontWeight: 600,
+            fontFamily: '"DM Mono", "Fira Code", monospace',
+            letterSpacing: '0',
+            border: '1.5px solid',
+            borderColor: digits[i] ? amber : theme.palette.divider,
+            borderRadius: '5px',
+            backgroundColor: isDark
+              ? (digits[i] ? `${amber}10` : '#1A1915')
+              : (digits[i] ? `${amber}08` : '#FDFCF8'),
+            color: theme.palette.text.primary,
             outline: 'none',
             cursor: 'text',
-            transition: 'border-color 0.15s',
+            transition: 'border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease',
             '&:focus': {
-              borderColor: theme.palette.primary.main,
-              boxShadow: `0 0 0 3px ${theme.palette.primary.main}25`,
+              borderColor: amber,
+              boxShadow: `0 0 0 3px ${amber}22`,
             },
-            '&:disabled': { opacity: 0.5, cursor: 'not-allowed' },
+            '&:disabled': {
+              opacity: 0.45,
+              cursor: 'not-allowed',
+            },
           }}
         />
       ))}

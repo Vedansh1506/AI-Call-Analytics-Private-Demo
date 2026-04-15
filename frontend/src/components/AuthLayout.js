@@ -4,62 +4,41 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Login from './Login';
 import Register from './Register';
 
+// AuthLayout handles the animated transition between Login and Register.
+// The new Login/Register are split-panel pages (no glassmorphism card),
+// so we just animate them with a simple fade rather than a slide that
+// clashes with the full-width layout.
+
 const AuthLayout = ({ onLogin }) => {
   const [showRegister, setShowRegister] = useState(false);
 
-  const handleSwitchToRegister = () => {
-    setShowRegister(true);
-  };
-
-  const handleSwitchToLogin = () => {
-    setShowRegister(false);
-  };
-
-  const slideVariants = {
-    enter: (direction) => ({
-      x: direction > 0 ? 300 : -300,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction) => ({
-      x: direction < 0 ? 300 : -300,
-      opacity: 0,
-    }),
+  const variants = {
+    enter:  { opacity: 0 },
+    center: { opacity: 1 },
+    exit:   { opacity: 0 },
   };
 
   return (
-    <Box
-      sx={{
-        position: 'relative',
-        width: '100%',
-        height: '100vh',
-      }}
-    >
+    <Box sx={{ position: 'relative', width: '100%', minHeight: '100vh' }}>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={showRegister ? 'register' : 'login'}
           initial="enter"
           animate="center"
           exit="exit"
-          variants={slideVariants}
-          transition={{
-            x: { type: 'spring', stiffness: 300, damping: 30 },
-            opacity: { duration: 0.3 },
-          }}
-          style={{ height: '100%' }}
+          variants={variants}
+          transition={{ duration: 0.2, ease: 'easeInOut' }}
+          style={{ width: '100%', minHeight: '100vh' }}
         >
           {showRegister ? (
             <Register
               onLogin={onLogin}
-              onSwitchToLogin={handleSwitchToLogin}
+              onSwitchToLogin={() => setShowRegister(false)}
             />
           ) : (
             <Login
               onLogin={onLogin}
-              onSwitchToRegister={handleSwitchToRegister}
+              onSwitchToRegister={() => setShowRegister(true)}
             />
           )}
         </motion.div>

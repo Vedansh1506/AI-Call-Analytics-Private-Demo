@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, TextField, Button, Typography, Alert,
-  CircularProgress, InputAdornment, IconButton,
-  Link, Paper, Container,
+  CircularProgress, InputAdornment, IconButton, Link,
 } from '@mui/material';
 import {
   Email as EmailIcon, Lock as LockIcon,
-  Visibility, VisibilityOff,
-  ArrowBack as ArrowBackIcon,
+  Visibility, VisibilityOff, ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../services/api';
@@ -15,17 +13,39 @@ import { useThemeContext } from '../context/ThemeContext';
 import { Brightness4, Brightness7 } from '@mui/icons-material';
 import Tooltip from '@mui/material/Tooltip';
 import OtpInput from './OtpInput';
+import { useTheme } from '@mui/material/styles';
 
-const fieldSx = {
-  "& .MuiInputLabel-root": { color: "text.primary" },
-  "& .MuiInputBase-input": { color: "text.primary" },
-  "& .MuiOutlinedInput-notchedOutline": { borderColor: "divider" },
-  "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
-  "& .Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "primary.main" },
+const mkFieldSx = () => ({
+  '& .MuiOutlinedInput-root': { borderRadius: '5px' },
+  '& .MuiInputBase-input': { fontSize: '0.875rem' },
+});
+
+const PasswordCheck = ({ ok, label }) => {
+  const theme = useTheme();
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, py: 0.1 }}>
+      <Typography component="span" sx={{
+        fontSize: '0.7rem', fontWeight: 700, width: 12, textAlign: 'center',
+        color: ok ? '#2CB67D' : theme.palette.text.disabled,
+      }}>
+        {ok ? '✓' : '–'}
+      </Typography>
+      <Typography sx={{ fontSize: '0.75rem', color: ok ? '#2CB67D' : theme.palette.text.secondary }}>
+        {label}
+      </Typography>
+    </Box>
+  );
 };
 
 const ForgotPassword = ({ onBack }) => {
+  const theme = useTheme();
   const { isDark, toggleTheme } = useThemeContext();
+  const amber = theme.palette.primary.main;
+  const fieldSx = mkFieldSx();
+
+  const bgColor     = isDark ? '#0C0B09' : '#F4F1EC';
+  const panelBg     = isDark ? '#111009' : '#FDFCF8';
+  const borderColor = isDark ? '#28261F' : '#DDD9D1';
 
   const [email,       setEmail]       = useState('');
   const [otpSent,     setOtpSent]     = useState(false);
@@ -46,302 +66,248 @@ const ForgotPassword = ({ onBack }) => {
     number:  /\d/.test(newPassword),
     special: /[^A-Za-z0-9]/.test(newPassword),
   };
-  const isPwValid    = Object.values(passwordChecks).every(Boolean);
+  const isPwValid      = Object.values(passwordChecks).every(Boolean);
   const passwordsMatch = confirmPass.length > 0 && newPassword === confirmPass;
 
-  // auto-verify OTP once all 6 digits entered
   useEffect(() => {
-    if (otp.length === 6 && !otpVerified) {
-      setOtpVerified(true);
-      setError('');
-    }
+    if (otp.length === 6 && !otpVerified) { setOtpVerified(true); setError(''); }
   }, [otp, otpVerified]);
 
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
       setOtpSent(true);
-    } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } catch { setError('Something went wrong. Please try again.'); }
+    finally { setLoading(false); }
   };
 
   const handleResend = async () => {
-    setResending(true);
-    setOtp('');
-    setOtpVerified(false);
-    setError('');
-    try {
-      await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() });
-    } catch {}
-    finally { setResending(false); }
+    setResending(true); setOtp(''); setOtpVerified(false); setError('');
+    try { await api.post('/auth/forgot-password', { email: email.trim().toLowerCase() }); }
+    catch {} finally { setResending(false); }
   };
 
   const handleReset = async (e) => {
     e.preventDefault();
     if (!isPwValid || !passwordsMatch) return;
-    setLoading(true);
-    setError('');
+    setLoading(true); setError('');
     try {
       await api.post('/auth/reset-password', {
-        email:        email.trim().toLowerCase(),
-        otp:          otp.trim(),
-        new_password: newPassword,
+        email: email.trim().toLowerCase(), otp: otp.trim(), new_password: newPassword,
       });
       setDone(true);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Invalid code. Please try again.');
-      setOtp('');
-      setOtpVerified(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const paperSx = {
-    p: { xs: 3, sm: 4 }, borderRadius: 3,
-    maxWidth: 460, mx: 'auto',
-    background: (t) => t.palette.mode === 'dark'
-      ? 'rgba(15,23,42,0.92)' : 'rgba(255,255,255,0.97)',
-    backdropFilter: 'blur(18px)',
-    border: '1px solid rgba(148,163,184,0.3)',
+      setOtp(''); setOtpVerified(false);
+    } finally { setLoading(false); }
   };
 
   return (
     <Box sx={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', p: { xs: 2, sm: 3 },
-      background: (t) => t.palette.mode === 'dark'
-        ? 'linear-gradient(135deg,#020617,#0f172a)'
-        : 'linear-gradient(135deg,#e5e7eb,#f9fafb)',
-      position: 'relative',
+      minHeight: '100vh', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+      bgcolor: bgColor, p: { xs: 2, sm: 3 }, position: 'relative',
     }}>
-
-      {/* theme toggle */}
-      <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1200 }}>
-        <Tooltip title={isDark ? 'Light mode' : 'Dark mode'}>
-          <IconButton
-            onClick={toggleTheme}
-            size="small"
-            sx={{
-              bgcolor: 'background.paper',
-              border: '1px solid',
-              borderColor: 'divider',
-              '&:hover': { bgcolor: 'action.hover' },
-            }}
-          >
-            {isDark
-              ? <Brightness7 sx={{ fontSize: 18 }} />
-              : <Brightness4 sx={{ fontSize: 18 }} />
-            }
+      {/* Theme toggle */}
+      <Box sx={{ position: 'absolute', top: 20, right: 20 }}>
+        <Tooltip title={isDark ? 'Light mode' : 'Dark mode'} arrow>
+          <IconButton onClick={toggleTheme} size="small" sx={{
+            width: 32, height: 32, borderRadius: '5px',
+            border: `1px solid ${borderColor}`, color: theme.palette.text.disabled,
+            '&:hover': { color: theme.palette.text.primary },
+          }}>
+            {isDark ? <Brightness7 sx={{ fontSize: 15 }} /> : <Brightness4 sx={{ fontSize: 15 }} />}
           </IconButton>
         </Tooltip>
       </Box>
 
-      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1, px: { xs: 0, sm: 2 } }}>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <Paper elevation={0} sx={paperSx}>
-
-            {/* ── Success state ── */}
-            {done ? (
-              <Box sx={{ textAlign: 'center' }}>
-                <Box sx={{
-                  width: 64, height: 64, borderRadius: '50%',
-                  bgcolor: 'success.main', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  mx: 'auto', mb: 2.5,
-                }}>
-                  <Typography sx={{ color: '#fff', fontSize: 30 }}>✓</Typography>
-                </Box>
-                <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
-                  Password updated
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  You can now sign in with your new password.
-                </Typography>
-                <Button variant="contained" fullWidth size="large" onClick={onBack} sx={{ py: 1.4 }}>
-                  Back to sign in
-                </Button>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        style={{ width: '100%', maxWidth: 420 }}
+      >
+        <Box sx={{
+          backgroundColor: panelBg,
+          border: `1px solid ${borderColor}`,
+          borderRadius: '8px',
+          p: { xs: 3, sm: 4 },
+        }}>
+          {/* ── Success state ── */}
+          {done ? (
+            <Box sx={{ textAlign: 'center' }}>
+              <Box sx={{
+                width: 52, height: 52, mx: 'auto', mb: 2.5,
+                borderRadius: '10px',
+                backgroundColor: '#2CB67D18', border: '1px solid #2CB67D30',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Typography sx={{ color: '#2CB67D', fontSize: 22, fontWeight: 700 }}>✓</Typography>
               </Box>
-            ) : (
-              <>
-                {/* header */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                    {!otpSent ? 'Forgot your password?' : 'Check your email'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {!otpSent
-                      ? "Enter your email and we'll send you a verification code."
-                      : `We sent a 6-digit code to ${email}. Enter it below.`
-                    }
-                  </Typography>
-                </Box>
-
-                <AnimatePresence>
-                  {error && (
-                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-                      <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{error}</Alert>
-                    </motion.div>
+              <Typography sx={{
+                fontFamily: '"DM Serif Display", serif',
+                fontSize: '1.4rem', mb: 0.75,
+              }}>
+                Password updated
+              </Typography>
+              <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.secondary, mb: 3 }}>
+                You can now sign in with your new password.
+              </Typography>
+              <Button fullWidth variant="contained" onClick={onBack}
+                sx={{ py: 1.2, backgroundColor: amber, color: '#0C0B09', fontWeight: 600,
+                  '&:hover': { backgroundColor: theme.palette.primary.light } }}>
+                Back to sign in
+              </Button>
+            </Box>
+          ) : (
+            <>
+              {/* Header */}
+              <Box sx={{ mb: 3 }}>
+                <Typography sx={{
+                  fontFamily: '"DM Serif Display", serif',
+                  fontSize: '1.5rem', mb: 0.5, color: theme.palette.text.primary,
+                }}>
+                  {!otpSent ? 'Reset password' : 'Check your email'}
+                </Typography>
+                <Typography sx={{ fontSize: '0.8125rem', color: theme.palette.text.secondary }}>
+                  {!otpSent
+                    ? "Enter your email and we'll send a verification code."
+                    : `We sent a 6-digit code to `
+                  }
+                  {otpSent && (
+                    <Box component="span" sx={{
+                      color: amber, fontFamily: '"DM Mono", monospace', fontSize: '0.75rem',
+                    }}>
+                      {email}
+                    </Box>
                   )}
-                </AnimatePresence>
+                </Typography>
+              </Box>
 
-                {/* ── Step 1: email form ── */}
-                {!otpSent && (
-                  <Box component="form" onSubmit={handleSendOtp}>
-                    <TextField
-                      fullWidth required margin="normal"
-                      label="Email address" type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      sx={fieldSx}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <EmailIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                    <Button
-                      type="submit" fullWidth variant="contained" size="large"
-                      disabled={loading || !email.trim()}
-                      sx={{ mt: 2.5, mb: 2, py: 1.4 }}
-                    >
-                      {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Send verification code'}
-                    </Button>
-                    <Box sx={{ textAlign: 'center' }}>
-                      <Link
-                        component="button" type="button" variant="body2"
-                        onClick={onBack}
-                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 500, textDecoration: 'none', color: 'text.secondary' }}
-                      >
-                        <ArrowBackIcon sx={{ fontSize: 15 }} /> Back to sign in
-                      </Link>
-                    </Box>
-                  </Box>
+              <AnimatePresence>
+                {error && (
+                  <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }} style={{ marginBottom: 16 }}>
+                    <Alert severity="error">{error}</Alert>
+                  </motion.div>
                 )}
+              </AnimatePresence>
 
-                {/* ── Step 2: OTP + new password ── */}
-                {otpSent && (
-                  <Box component="form" onSubmit={handleReset}>
+              {/* ── Step 1: email ── */}
+              {!otpSent && (
+                <Box component="form" onSubmit={handleSendOtp} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <TextField
+                    fullWidth required label="Email address" type="email"
+                    value={email} onChange={e => setEmail(e.target.value)} sx={fieldSx}
+                    InputProps={{ startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} />
+                      </InputAdornment>
+                    )}}
+                  />
+                  <Button type="submit" fullWidth variant="contained"
+                    disabled={loading || !email.trim()}
+                    sx={{ py: 1.2, backgroundColor: amber, color: '#0C0B09', fontWeight: 600,
+                      '&:hover': { backgroundColor: theme.palette.primary.light }, '&:disabled': { opacity: 0.4 } }}>
+                    {loading ? <CircularProgress size={18} sx={{ color: '#0C0B09' }} /> : 'Send verification code'}
+                  </Button>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Link component="button" type="button" onClick={onBack}
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4,
+                        fontSize: '0.8125rem', color: theme.palette.text.secondary,
+                        textDecoration: 'none', '&:hover': { color: amber } }}>
+                      <ArrowBackIcon sx={{ fontSize: 14 }} /> Back to sign in
+                    </Link>
+                  </Box>
+                </Box>
+              )}
 
-                    {/* OTP boxes */}
-                    <OtpInput value={otp} onChange={setOtp} disabled={loading} />
+              {/* ── Step 2: OTP + new password ── */}
+              {otpSent && (
+                <Box component="form" onSubmit={handleReset} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {/* OTP */}
+                  <OtpInput value={otp} onChange={setOtp} disabled={loading} />
 
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5, mb: 2 }}>
-                      <Link
-                        component="button" type="button" variant="caption"
-                        onClick={handleResend} disabled={resending}
-                        sx={{ fontWeight: 500, textDecoration: 'none', color: 'text.secondary' }}
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Link component="button" type="button" onClick={handleResend} disabled={resending}
+                      sx={{ fontSize: '0.75rem', color: theme.palette.text.secondary, textDecoration: 'none',
+                        fontWeight: 500, '&:hover': { color: amber } }}>
+                      {resending ? 'Sending…' : 'Resend code'}
+                    </Link>
+                  </Box>
+
+                  {/* New password fields — appear after OTP filled */}
+                  <AnimatePresence>
+                    {otpVerified && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        transition={{ duration: 0.22 }}
                       >
-                        {resending ? 'Sending...' : 'Resend code'}
-                      </Link>
-                    </Box>
-
-                    {/* New password — appears once OTP is filled */}
-                    <AnimatePresence>
-                      {otpVerified && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          transition={{ duration: 0.25 }}
-                        >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
                           <TextField
-                            fullWidth margin="normal"
-                            label="New password"
+                            fullWidth label="New password"
                             type={showPass ? 'text' : 'password'}
-                            value={newPassword}
-                            onChange={e => setNewPassword(e.target.value)}
-                            sx={fieldSx}
+                            value={newPassword} onChange={e => setNewPassword(e.target.value)} sx={fieldSx}
                             InputProps={{
-                              startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} /></InputAdornment>,
-                              endAdornment: (
-                                <InputAdornment position="end">
-                                  <IconButton size="small" onClick={() => setShowPass(s => !s)} sx={{ color: 'text.secondary' }}>
-                                    {showPass ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                                  </IconButton>
-                                </InputAdornment>
-                              ),
+                              startAdornment: <InputAdornment position="start"><LockIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} /></InputAdornment>,
+                              endAdornment: <InputAdornment position="end"><IconButton size="small" onClick={() => setShowPass(p => !p)} sx={{ color: theme.palette.text.disabled }}>{showPass ? <VisibilityOff sx={{ fontSize: 16 }} /> : <Visibility sx={{ fontSize: 16 }} />}</IconButton></InputAdornment>,
                             }}
                           />
 
                           {newPassword.length > 0 && (
-                            <Box sx={{ px: 0.5, mb: 1 }}>
-                              {[
-                                ['8 characters minimum', passwordChecks.length],
-                                ['One uppercase letter',  passwordChecks.upper],
-                                ['One lowercase letter',  passwordChecks.lower],
-                                ['One number',            passwordChecks.number],
-                                ['One special character', passwordChecks.special],
-                              ].map(([label, ok]) => (
-                                <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, py: 0.1 }}>
-                                  <Typography component="span" sx={{ color: ok ? 'success.main' : 'text.disabled', fontWeight: 700, fontSize: 13, width: 14, textAlign: 'center' }}>
-                                    {ok ? '✓' : '–'}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ color: ok ? 'success.main' : 'text.secondary' }}>
-                                    {label}
-                                  </Typography>
-                                </Box>
-                              ))}
+                            <Box sx={{ pl: 0.5 }}>
+                              <PasswordCheck ok={passwordChecks.length}  label="8 characters minimum" />
+                              <PasswordCheck ok={passwordChecks.upper}   label="One uppercase letter" />
+                              <PasswordCheck ok={passwordChecks.lower}   label="One lowercase letter" />
+                              <PasswordCheck ok={passwordChecks.number}  label="One number" />
+                              <PasswordCheck ok={passwordChecks.special} label="One special character" />
                             </Box>
                           )}
 
                           <TextField
-                            fullWidth margin="normal"
-                            label="Confirm new password"
+                            fullWidth label="Confirm new password"
                             type={showPass ? 'text' : 'password'}
-                            value={confirmPass}
-                            onChange={e => setConfirmPass(e.target.value)}
-                            sx={fieldSx}
-                            InputProps={{
-                              startAdornment: <InputAdornment position="start"><LockIcon sx={{ color: 'text.secondary', fontSize: 20 }} /></InputAdornment>,
-                            }}
+                            value={confirmPass} onChange={e => setConfirmPass(e.target.value)} sx={fieldSx}
+                            InputProps={{ startAdornment: <InputAdornment position="start"><LockIcon sx={{ fontSize: 16, color: theme.palette.text.disabled }} /></InputAdornment> }}
                           />
 
                           {confirmPass.length > 0 && (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1, px: 0.5 }}>
-                              <Typography component="span" sx={{ color: passwordsMatch ? 'success.main' : 'error.main', fontWeight: 700, fontSize: 13, width: 14, textAlign: 'center' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, pl: 0.5 }}>
+                              <Typography component="span" sx={{ fontSize: '0.7rem', fontWeight: 700, color: passwordsMatch ? '#2CB67D' : '#E05252' }}>
                                 {passwordsMatch ? '✓' : '✕'}
                               </Typography>
-                              <Typography variant="caption" sx={{ color: passwordsMatch ? 'success.main' : 'error.main', fontWeight: 600 }}>
+                              <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: passwordsMatch ? '#2CB67D' : '#E05252' }}>
                                 {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
                               </Typography>
                             </Box>
                           )}
 
-                          <Button
-                            type="submit" fullWidth variant="contained" size="large"
+                          <Button type="submit" fullWidth variant="contained"
                             disabled={loading || !isPwValid || !passwordsMatch}
-                            sx={{ mt: 1.5, py: 1.4 }}
-                          >
-                            {loading ? <CircularProgress size={22} sx={{ color: '#fff' }} /> : 'Set new password'}
+                            sx={{ py: 1.2, backgroundColor: amber, color: '#0C0B09', fontWeight: 600,
+                              '&:hover': { backgroundColor: theme.palette.primary.light }, '&:disabled': { opacity: 0.4 } }}>
+                            {loading ? <CircularProgress size={18} sx={{ color: '#0C0B09' }} /> : 'Set new password'}
                           </Button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        </Box>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                    <Box sx={{ textAlign: 'center', mt: 2 }}>
-                      <Link
-                        component="button" type="button" variant="body2"
-                        onClick={onBack}
-                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 500, textDecoration: 'none', color: 'text.secondary' }}
-                      >
-                        <ArrowBackIcon sx={{ fontSize: 15 }} /> Back to sign in
-                      </Link>
-                    </Box>
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Link component="button" type="button" onClick={onBack}
+                      sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.4,
+                        fontSize: '0.8125rem', color: theme.palette.text.secondary,
+                        textDecoration: 'none', '&:hover': { color: amber } }}>
+                      <ArrowBackIcon sx={{ fontSize: 14 }} /> Back to sign in
+                    </Link>
                   </Box>
-                )}
-              </>
-            )}
-          </Paper>
-        </motion.div>
-      </Container>
+                </Box>
+              )}
+            </>
+          )}
+        </Box>
+      </motion.div>
     </Box>
   );
 };

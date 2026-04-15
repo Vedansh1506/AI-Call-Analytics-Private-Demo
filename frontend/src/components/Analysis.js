@@ -1,67 +1,109 @@
-  import React, { useState, useEffect, useCallback, useMemo } from "react";
-  import ReactECharts from "echarts-for-react";
-  import {
-    Box,
-    Typography,
-    Paper,
-    Tabs,
-    Tab,
-    Card,
-    CardContent,
-    Grid,
-    Chip,
-    Alert,
-    Select,
-    Menu,
-    MenuItem,
-    Button,
-    IconButton,
-    Tooltip,
-    Table,
-    TableBody,
-    TableRow,
-    TableCell,
-    TableContainer,
-  } from "@mui/material";
-  import DownloadIcon from '@mui/icons-material/Download';
-  import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-  import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-  import CloseIcon from "@mui/icons-material/Close";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import ReactECharts from "echarts-for-react";
+import {
+  Box,
+  Typography,
+  Paper,
+  Tabs,
+  Tab,
+  Card,
+  CardContent,
+  Grid,
+  Chip,
+  Alert,
+  Select,
+  Menu,
+  MenuItem,
+  Button,
+  IconButton,
+  Tooltip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
+  Skeleton,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
+import DownloadIcon from "@mui/icons-material/Download";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import CloseIcon from "@mui/icons-material/Close";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SearchIcon from "@mui/icons-material/Search";
+import { useTheme } from "@mui/material/styles";
+import { useParams, useNavigate } from "react-router-dom";
+import { assetsAPI } from "../services/api";
+import api from "../services/api";
+import AskAI from "./AskAI";
+import WaveformPlayer from "./WaveformPlayer";
 
-  import Skeleton from '@mui/material/Skeleton';
-  
-  import TextField from "@mui/material/TextField";
-  import InputAdornment from "@mui/material/InputAdornment";
-  import { useTheme } from "@mui/material/styles";
+/* ─────────────────────────────────────────────────────────────────────────────
+   HELPER UTILITIES
+───────────────────────────────────────────────────────────────────────────── */
 
-  import { useParams, useNavigate } from "react-router-dom";
-  import { assetsAPI } from "../services/api";
-  import api from "../services/api";
+const isEmpty = (val) => {
+  if (val === null || val === undefined || val === "" || val === "-") return true;
+  if (Array.isArray(val) && val.length === 0) return true;
+  if (typeof val === "object" && !Array.isArray(val) && Object.keys(val).length === 0) return true;
+  return false;
+};
 
-  import AskAI from './AskAI';
-  import WaveformPlayer from './WaveformPlayer';
+const normalizeSentiment = (value) => {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "positive") return "Positive";
+  if (v === "negative") return "Negative";
+  if (v === "neutral")  return "Neutral";
+  return "Unknown";
+};
 
-  // ─── Empty State Component ────────────────────────────────────────────────────
-  // Shows a subtle, transparent placeholder when a field has no data.
-  // Feels intentional — not broken.
-  const EmptyState = ({ message = "No data available", compact = false }) => (
+const normalizeResolutionStatus = (value) => {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "resolved")   return "Resolved";
+  if (v === "unresolved") return "Unresolved";
+  if (v === "pending")    return "Pending";
+  if (["not applicable","not-applicable","non applicable","n/a","na"].includes(v)) return "Not Applicable";
+  return "Unknown";
+};
+
+const normalizeChurnLevel = (value) => {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "high")   return "High";
+  if (v === "medium") return "Medium";
+  if (v === "low")    return "Low";
+  if (["not applicable","not-applicable","non applicable","n/a","na"].includes(v)) return "Not Applicable";
+  return "Unknown";
+};
+
+const sentimentColor = (value) => {
+  const n = normalizeSentiment(value);
+  if (n === "Positive") return "success";
+  if (n === "Negative") return "error";
+  if (n === "Neutral")  return "info";
+  return "default";
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SUB-COMPONENTS
+───────────────────────────────────────────────────────────────────────────── */
+
+/** Inline italic placeholder when a field has no data */
+const FieldEmpty = ({ message = "No data available", compact = false }) => {
+  const theme = useTheme();
+  return (
     <Box
       sx={{
-        border: "1.5px dashed",
-        borderColor: "divider",
-        borderRadius: 2,
-        px: compact ? 2 : 3,
-        py: compact ? 1 : 2,
-        display: "flex",
+        display: "inline-flex",
         alignItems: "center",
-        backgroundColor: "background.paper",
-        mt: compact ? 0 : 1,
+        px: compact ? 0 : 0.5,
+        py: compact ? 0 : 0.25,
       }}
     >
       <Typography
         sx={{
-          fontSize: compact ? "0.78rem" : "0.875rem",
-          color: "text.secondary",
+          fontSize: compact ? "0.75rem" : "0.8125rem",
+          color: theme.palette.text.disabled,
           fontStyle: "italic",
         }}
       >
@@ -69,322 +111,354 @@
       </Typography>
     </Box>
   );
+};
 
-  // ─── Helper: check if a value is "empty" ─────────────────────────────────────
-  const isEmpty = (val) => {
-    if (val === null || val === undefined || val === "" || val === "-") return true;
-    if (Array.isArray(val) && val.length === 0) return true;
-    if (typeof val === "object" && !Array.isArray(val) && Object.keys(val).length === 0) return true;
-    return false;
-  };
+/** Section heading label */
+const SectionLabel = ({ children, mt = 3 }) => {
+  const theme = useTheme();
+  return (
+    <Typography
+      sx={{
+        mt,
+        mb: 1.25,
+        fontSize: "0.6875rem",
+        fontWeight: 600,
+        letterSpacing: "0.09em",
+        textTransform: "uppercase",
+        color: theme.palette.text.disabled,
+      }}
+    >
+      {children}
+    </Typography>
+  );
+};
 
-  // ─── Main Component ───────────────────────────────────────────────────────────
-  const Analysis = () => {
-    const { assetId } = useParams();
-    const navigate = useNavigate();
+/** Bordered info surface */
+const InfoSurface = ({ children, noPad = false }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        border: `1px solid ${theme.palette.divider}`,
+        borderRadius: "6px",
+        backgroundColor: theme.palette.background.paper,
+        ...(noPad ? {} : { px: 2, py: 1.75 }),
+        overflow: "hidden",
+      }}
+    >
+      {children}
+    </Box>
+  );
+};
 
-    const [analysis, setAnalysis] = useState(null);
-    const [analysisLoading, setAnalysisLoading] = useState(false);
+/** Key–value row inside a metrics block */
+const MetricRow = ({ label, value, indent = false }) => {
+  const theme = useTheme();
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        px: indent ? 3.5 : 2,
+        py: 1.4,
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        "&:last-child": { borderBottom: "none" },
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: "0.8125rem",
+          color: indent ? theme.palette.text.secondary : theme.palette.text.primary,
+          fontWeight: indent ? 400 : 500,
+        }}
+      >
+        {indent ? `\u2022 ${label}` : label}
+      </Typography>
+      <Typography
+        sx={{
+          fontFamily: '"DM Mono", "Fira Code", monospace',
+          fontSize: "0.8125rem",
+          fontWeight: 500,
+          color: theme.palette.text.primary,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  );
+};
 
-    const [transcript, setTranscript] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [tabValue, setTabValue] = useState(0);
-    const [currentTime, setCurrentTime] = useState(0);
-    const activeRef = React.useRef(null); 
-    const [audioSrc, setAudioSrc] = useState(null);
-    const lastActiveIndexRef = React.useRef(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [searchMatchPointer, setSearchMatchPointer] = useState(-1);
-    const [exportAnchorEl, setExportAnchorEl] = useState(null);
-    const [selectedTranscriptVariant, setSelectedTranscriptVariant] = useState("original");
-    const [analysisLanguage, setAnalysisLanguage] = useState("en");
-    const analysisCacheRef = React.useRef({});
-    const waveformPlayerRef = React.useRef(null);
-    
+/* ─────────────────────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────────────────────── */
+
+const Analysis = () => {
+  const { assetId } = useParams();
+  const navigate = useNavigate();
   const theme = useTheme();
   const isDark = theme.palette.mode === "dark";
+  const amber = theme.palette.primary.main;
 
-    const fetchAnalysis = useCallback(async () => {
-      const cacheKey = `${assetId}:${analysisLanguage}`;
-      const cached = analysisCacheRef.current[cacheKey];
-      if (cached) {
-        setAnalysis(cached);
-        return;
-      }
+  /* ── State ── */
+  const [analysis,         setAnalysis]         = useState(null);
+  const [analysisLoading,  setAnalysisLoading]  = useState(false);
+  const [transcript,       setTranscript]       = useState(null);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState("");
+  const [tabValue,         setTabValue]         = useState(0);
+  const [currentTime,      setCurrentTime]      = useState(0);
+  const [audioSrc,         setAudioSrc]         = useState(null);
+  const [searchTerm,       setSearchTerm]       = useState("");
+  const [searchMatchPointer, setSearchMatchPointer] = useState(-1);
+  const [exportAnchorEl,   setExportAnchorEl]   = useState(null);
+  const [selectedTranscriptVariant, setSelectedTranscriptVariant] = useState("original");
+  const [analysisLanguage, setAnalysisLanguage] = useState("en");
 
-      setAnalysisLoading(true);
-      try {
-        const response = await assetsAPI.getAnalysis(assetId, analysisLanguage);
-        analysisCacheRef.current[cacheKey] = response.data;
-        setAnalysis(response.data);
-      } catch {
-        setError("Failed to load analysis.");
-      } finally {
-        setAnalysisLoading(false);
-      }
-    }, [assetId, analysisLanguage]);
+  const activeRef           = React.useRef(null);
+  const lastActiveIndexRef  = React.useRef(null);
+  const analysisCacheRef    = React.useRef({});
+  const waveformPlayerRef   = React.useRef(null);
 
-    const fetchTranscript = useCallback(async () => {
-      try {
-        const response = await assetsAPI.getTranscript(assetId);
-        setTranscript(response.data);
-      } catch {}
-      finally {
-        setLoading(false);
-      }
-    }, [assetId]);
+  /* ── Data fetching ── */
+  const fetchAnalysis = useCallback(async () => {
+    const cacheKey = `${assetId}:${analysisLanguage}`;
+    const cached   = analysisCacheRef.current[cacheKey];
+    if (cached) { setAnalysis(cached); return; }
+    setAnalysisLoading(true);
+    try {
+      const response = await assetsAPI.getAnalysis(assetId, analysisLanguage);
+      analysisCacheRef.current[cacheKey] = response.data;
+      setAnalysis(response.data);
+    } catch {
+      setError("Failed to load analysis.");
+    } finally {
+      setAnalysisLoading(false);
+    }
+  }, [assetId, analysisLanguage]);
 
-    useEffect(() => { fetchAnalysis(); }, [fetchAnalysis]);
-    useEffect(() => { fetchTranscript(); }, [fetchTranscript]);
-
-    useEffect(() => {
-      const canPrefetchOriginal =
-        analysisLanguage === "en" &&
-        analysis?.available_analysis_languages?.includes("original");
-      if (!canPrefetchOriginal) return;
-
-      const cacheKey = `${assetId}:original`;
-      if (analysisCacheRef.current[cacheKey]) return;
-
-      let active = true;
-      assetsAPI
-        .getAnalysis(assetId, "original")
-        .then((res) => {
-          if (active) {
-            analysisCacheRef.current[cacheKey] = res.data;
-          }
-        })
-        .catch(() => {});
-      return () => {
-        active = false;
-      };
-    }, [analysis, analysisLanguage, assetId]);
-
-    
-    useEffect(() => {
-    let objectUrl = null;
-
-    const loadAudio = async () => {
-      try {
-        const response = await api.get(`/assets/${assetId}/audio`, {
-          responseType: "blob",
-        });
-        objectUrl = URL.createObjectURL(response.data);
-        setAudioSrc(objectUrl);
-      } catch (err) {
-        console.error("Audio load failed", err);
-      }
-    };
-
-    loadAudio();
-
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
+  const fetchTranscript = useCallback(async () => {
+    try {
+      const response = await assetsAPI.getTranscript(assetId);
+      setTranscript(response.data);
+    } catch {}
+    finally { setLoading(false); }
   }, [assetId]);
 
-  const handleTimeUpdate = useCallback((ms) => {
-    setCurrentTime(ms);
-  }, []);
-  
+  useEffect(() => { fetchAnalysis();  }, [fetchAnalysis]);
+  useEffect(() => { fetchTranscript(); }, [fetchTranscript]);
+
+  /* Prefetch original-language analysis */
+  useEffect(() => {
+    const canPrefetch =
+      analysisLanguage === "en" &&
+      analysis?.available_analysis_languages?.includes("original");
+    if (!canPrefetch) return;
+    const cacheKey = `${assetId}:original`;
+    if (analysisCacheRef.current[cacheKey]) return;
+    let active = true;
+    assetsAPI.getAnalysis(assetId, "original")
+      .then((res) => { if (active) analysisCacheRef.current[cacheKey] = res.data; })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [analysis, analysisLanguage, assetId]);
+
+  /* Audio blob */
+  useEffect(() => {
+    let objectUrl = null;
+    const loadAudio = async () => {
+      try {
+        const response = await api.get(`/assets/${assetId}/audio`, { responseType: "blob" });
+        objectUrl = URL.createObjectURL(response.data);
+        setAudioSrc(objectUrl);
+      } catch {}
+    };
+    loadAudio();
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [assetId]);
+
+  const handleTimeUpdate = useCallback((ms) => setCurrentTime(ms), []);
+
+  /* ── Derived data ── */
   const performanceMetrics = analysis?.performance_metrics || {};
-  const talkRaw = performanceMetrics?.RawTalkTimeMs || {};
-  const callDuration = performanceMetrics?.TotalCallDuration;
-  const silenceTime = performanceMetrics?.SilenceTime;
-  const talkRatio = performanceMetrics?.TalkListenRatio || {};
-  const master = analysis?.master_json || {};
+  const talkRaw            = performanceMetrics?.RawTalkTimeMs     || {};
+  const callDuration       = performanceMetrics?.TotalCallDuration;
+  const silenceTime        = performanceMetrics?.SilenceTime;
+  const talkRatio          = performanceMetrics?.TalkListenRatio   || {};
+  const master             = analysis?.master_json                  || {};
+  const proc               = master?.processing_metrics             || {};
+  const llmUsage           = master?.usage?.llm                    || {};
+  const displayInsights    = analysis?.normalized_insights          || {};
+  const canonicalInsights  = analysis?.normalized_insights_en || analysis?.normalized_insights || {};
+  const insights           = displayInsights;
 
-  const proc = master?.processing_metrics || {};
-  const llmUsage = master?.usage?.llm || {};
-
-  const displayInsights = analysis?.normalized_insights || {};
-  const canonicalInsights = analysis?.normalized_insights_en || analysis?.normalized_insights || {};
-  const insights = displayInsights; // for existing UI blocks
-
-  const openExportMenu = (event) => {
-    setExportAnchorEl(event.currentTarget);
-  };
-
-  const closeExportMenu = () => {
-    setExportAnchorEl(null);
-  };
-
+  /* Export helpers */
+  const openExportMenu  = (e) => setExportAnchorEl(e.currentTarget);
+  const closeExportMenu = ()  => setExportAnchorEl(null);
   const downloadTranscript = (format) => {
     window.open(assetsAPI.getTranscriptExportUrl(assetId, format), "_blank");
     closeExportMenu();
   };
-
   const downloadAnalysis = (format, lang = analysisLanguage) => {
     window.open(assetsAPI.getAnalysisExportUrl(assetId, format, lang), "_blank");
     closeExportMenu();
   };
+  const formatTalkRatioValue = (value) =>
+    (value === null || value === undefined || value === "") ? "Not Applicable" : String(value);
 
+  /* Talk-time chart data */
   const talkData = Object.entries(talkRaw).map(([name, value]) => ({
     name,
     value: Math.round(value / 1000),
   }));
 
-  const keywordObj = canonicalInsights?.KeywordCounts || {};
-
-  const sortedKeywords = Object.entries(keywordObj)
+  /* Keyword chart data */
+  const keywordObj      = canonicalInsights?.KeywordCounts || {};
+  const sortedKeywords  = Object.entries(keywordObj)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([text, value]) => ({ text, value }));
+
+  /* ── ECharts options ── */
+  const CHART_COLORS = [
+    amber, "#2CB67D", "#5B9CF6", "#E05252", "#9B6A1F",
+    "#A855F7", "#EC4899", "#14B8A6", "#F97316", "#8B5CF6",
+    "#D4CD06", "#48E4EC", "#852D54", "#634B21", "#5F5A5A",
+  ];
+
+  const legendScrollable =
+    talkData.length > 12 ||
+    talkData.some((d) => String(d.name || "").length > 24);
+
+  const talkTimeOption = {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      formatter: "{b}: {c}s ({d}%)",
+      backgroundColor: theme.palette.background.paper,
+      borderColor: theme.palette.divider,
+      borderWidth: 1,
+      textStyle: {
+        color: theme.palette.text.primary,
+        fontSize: 12,
+        fontFamily: '"DM Sans", sans-serif',
+        fontWeight: 600,
+      },
+    },
+    legend: {
+      type: legendScrollable ? "scroll" : "plain",
+      orient: "vertical",
+      right: 12,
+      top: 28,
+      bottom: 28,
+      itemWidth: 10,
+      itemHeight: 8,
+      itemGap: 10,
+      pageIconColor: theme.palette.text.primary,
+      pageTextStyle: { color: theme.palette.text.secondary },
+      textStyle: {
+        color: theme.palette.text.primary,
+        fontSize: 12,
+        fontFamily: '"DM Sans", sans-serif',
+        width: 160,
+        overflow: "truncate",
+      },
+      formatter: (name) => {
+        const s = String(name || "");
+        return s.length > 28 ? `${s.slice(0, 27)}\u2026` : s;
+      },
+    },
+    series: [
+      {
+        type: "pie",
+        radius: ["42%", "68%"],
+        center: ["32%", "50%"],
+        minAngle: 3,
+        avoidLabelOverlap: true,
+        label: { show: false },
+        labelLine: { show: false },
+        data: talkData.map((d, i) => ({
+          value: d.value,
+          name:  d.name,
+          itemStyle: { color: CHART_COLORS[i % CHART_COLORS.length] },
+        })),
+      },
+    ],
+  };
 
   const keywordBarOption = {
     backgroundColor: "transparent",
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
+      backgroundColor: theme.palette.background.paper,
+      borderColor: theme.palette.divider,
+      borderWidth: 1,
       textStyle: {
         color: theme.palette.text.secondary,
+        fontSize: 12,
+        fontFamily: '"DM Sans", sans-serif',
       },
     },
-
-    grid: { left: 80, right: 20, top: 20, bottom: 40 },
+    grid: { left: 80, right: 24, top: 12, bottom: 32 },
     xAxis: {
       type: "value",
-      axisLine: {
-        lineStyle: { color: theme.palette.divider },
-      },
-      splitLine: {
-        lineStyle: { color: theme.palette.divider },
-      },
-      axisLabel: {
-        color: theme.palette.text.secondary,
-      },
+      axisLine:  { lineStyle: { color: theme.palette.divider } },
+      splitLine: { lineStyle: { color: theme.palette.divider, opacity: 0.5 } },
+      axisLabel: { color: theme.palette.text.secondary, fontSize: 11, fontFamily: '"DM Sans", sans-serif' },
     },
-
     yAxis: {
       type: "category",
       inverse: true,
       axisLabel: {
         color: theme.palette.text.primary,
         fontWeight: 500,
+        fontSize: 12,
+        fontFamily: '"DM Sans", sans-serif',
       },
-      axisLine: {
-        lineStyle: { color: theme.palette.divider },
-      },
-      data: sortedKeywords.map(k => k.text)
+      axisLine: { lineStyle: { color: theme.palette.divider } },
+      data: sortedKeywords.map((k) => k.text),
     },
-
     series: [
       {
         type: "bar",
-        data: sortedKeywords.map(k => k.value),
+        data: sortedKeywords.map((k) => k.value),
         itemStyle: {
-          color: isDark ? "#ff0000" : "#ff1b1b",
-          borderRadius: [0, 6, 6, 0],
+          color: amber,
+          borderRadius: [0, 4, 4, 0],
+          opacity: 0.85,
         },
         emphasis: {
-    itemStyle: {
-      color: isDark ? "#60a5fa" : "#60a5fa",
-    },
-  },
+          itemStyle: { color: theme.palette.primary.light, opacity: 1 },
+        },
       },
-
     ],
   };
 
-  const COLORS = [ "#d4cd06", "#ec4899", "#007427", "#48e4ec", "#9600c4",
-    "#634b21", "#f28900", "#5edaac",  "#852d54","#ef4444",
-    "#22c55e","#5f5a5a",  "#6366f1",  "#efff85", "#c00053",];
+  /* ── Transcript state ── */
+  const sentenceSentiment = useMemo(
+    () => analysis?.sentence_sentiment ?? [],
+    [analysis?.sentence_sentiment]
+  );
 
-const legendCount = talkData.length;
-const legendTop = 28;
-const legendBottom = 28;
-const legendMaxRows = 12;
-const legendScrollable =
-  legendCount > legendMaxRows ||
-  talkData.some((d) => String(d.name || "").length > 24);
-
-const talkTimeOption = {
-  backgroundColor: "transparent",
-  tooltip: {
-    trigger: "item",
-    formatter: "{b}: {c}s ({d}%)",
-    backgroundColor: theme.palette.mode === "dark" ? "#0f172a" : "#ffffff",
-    borderColor: theme.palette.divider,
-    borderWidth: 1,
-    textStyle: {
-      color: theme.palette.text.primary,
-      fontWeight: 600,
-    },
-  },
-  legend: {
-    type: legendScrollable ? "scroll" : "plain",
-    orient: "vertical",
-    right: 18,
-    top: legendTop,
-    bottom: legendBottom,
-    itemWidth: 14,
-    itemHeight: 10,
-    itemGap: 10,
-    pageIconColor: theme.palette.text.primary,
-    pageTextStyle: { color: theme.palette.text.secondary },
-    textStyle: {
-      color: theme.palette.text.primary,
-      fontSize: 12,
-      width: 170,
-      overflow: "truncate",
-    },
-    formatter: (name) => {
-      const s = String(name || "");
-      return s.length > 28 ? `${s.slice(0, 27)}...` : s;
-    },
-  },
-  series: [
-    {
-      type: "pie",
-      radius: ["46%", "70%"],
-      center: ["30%", "50%"], // left shift to create safe legend zone
-      minAngle: 3,
-      avoidLabelOverlap: true,
-      label: { show: false },
-      labelLine: { show: false },
-      data: talkData.map((d, i) => ({
-        value: d.value,
-        name: d.name,
-        itemStyle: { color: COLORS[i % COLORS.length] },
-      })),
-    },
-  ],
-};
-
-const formatTalkRatioValue = (value) => {
-  if (value === null || value === undefined || value === "") {
-    return "Not Applicable";
-  }
-  return String(value);
-};
-
-    const sentenceSentiment = useMemo(
-      () => analysis?.sentence_sentiment ?? [],
-      [analysis?.sentence_sentiment]
-    );
-    const transcriptVariants = useMemo(
+  const transcriptVariants = useMemo(
     () => transcript?.variants ?? {},
     [transcript?.variants]
   );
 
-  const availableTranscriptVariants = useMemo(
-    () => Object.keys(transcriptVariants),
-    [transcriptVariants]
-  );
+  const availableTranscriptVariants = useMemo(() => {
+    return Object.keys(transcriptVariants);
+  }, [transcriptVariants]);
 
+  const utterances = useMemo(() => {
+    if (selectedTranscriptVariant === "en") {
+      return transcriptVariants?.en?.utterances ?? transcript?.utterances ?? [];
+    }
+    return transcriptVariants?.original?.utterances ?? transcript?.utterances ?? [];
+  }, [selectedTranscriptVariant, transcriptVariants, transcript?.utterances]);
 
-    const utterances = useMemo(() => {
-      if (selectedTranscriptVariant === "en") {
-        return transcriptVariants?.en?.utterances ?? transcript?.utterances ?? [];
-      }
-      return transcriptVariants?.original?.utterances ?? transcript?.utterances ?? [];
-    }, [selectedTranscriptVariant, transcriptVariants, transcript?.utterances]);
-    
-
-    useEffect(() => {
+  useEffect(() => {
     if (!availableTranscriptVariants.length) return;
     if (!availableTranscriptVariants.includes(selectedTranscriptVariant)) {
       setSelectedTranscriptVariant(
@@ -395,1058 +469,1218 @@ const formatTalkRatioValue = (value) => {
     }
   }, [availableTranscriptVariants, selectedTranscriptVariant]);
 
-    const transcriptMatches = useMemo(() => {
-      const q = searchTerm.trim().toLowerCase();
-      if (!q) return [];
-      const hits = [];
-      utterances.forEach((u, idx) => {
-        const text = String(u?.text || "").toLowerCase();
-        if (text.includes(q)) hits.push(idx);
-      });
-      return hits;
-    }, [utterances, searchTerm]);
+  /* ── Transcript search ── */
+  const transcriptMatches = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return [];
+    const hits = [];
+    utterances.forEach((u, idx) => {
+      if (String(u?.text || "").toLowerCase().includes(q)) hits.push(idx);
+    });
+    return hits;
+  }, [utterances, searchTerm]);
 
-    const activeSearchUtteranceIndex =
-      searchMatchPointer >= 0 && transcriptMatches.length > 0
-        ? transcriptMatches[searchMatchPointer]
-        : -1;
+  const activeSearchUtteranceIndex =
+    searchMatchPointer >= 0 && transcriptMatches.length > 0
+      ? transcriptMatches[searchMatchPointer]
+      : -1;
 
-    useEffect(() => {
-      if (!searchTerm.trim() || transcriptMatches.length === 0) {
-        setSearchMatchPointer(-1);
-        return;
-      }
-      setSearchMatchPointer(0);
-    }, [searchTerm, transcriptMatches.length]);
+  useEffect(() => {
+    if (!searchTerm.trim() || transcriptMatches.length === 0) {
+      setSearchMatchPointer(-1);
+      return;
+    }
+    setSearchMatchPointer(0);
+  }, [searchTerm, transcriptMatches.length]);
 
-    useEffect(() => {
-      if (tabValue !== 4 || activeSearchUtteranceIndex < 0) return;
-      const el = document.getElementById(`utt-${activeSearchUtteranceIndex}`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, [tabValue, activeSearchUtteranceIndex]);
+  useEffect(() => {
+    if (tabValue !== 4 || activeSearchUtteranceIndex < 0) return;
+    document
+      .getElementById(`utt-${activeSearchUtteranceIndex}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [tabValue, activeSearchUtteranceIndex]);
 
-    const gotoPrevSearchMatch = () => {
-      if (transcriptMatches.length === 0) return;
-      setSearchMatchPointer((prev) =>
-        prev <= 0 ? transcriptMatches.length - 1 : prev - 1
-      );
-    };
+  const gotoPrevSearchMatch = () => {
+    if (!transcriptMatches.length) return;
+    setSearchMatchPointer((p) => (p <= 0 ? transcriptMatches.length - 1 : p - 1));
+  };
+  const gotoNextSearchMatch = () => {
+    if (!transcriptMatches.length) return;
+    setSearchMatchPointer((p) => (p >= transcriptMatches.length - 1 ? 0 : p + 1));
+  };
 
-    const gotoNextSearchMatch = () => {
-      if (transcriptMatches.length === 0) return;
-      setSearchMatchPointer((prev) =>
-        prev >= transcriptMatches.length - 1 ? 0 : prev + 1
-      );
-    };
-  let activeIndex = utterances.findIndex(
-    u => currentTime >= u.start && currentTime <= u.end
+  /* Auto-scroll active utterance */
+  const activeIndex = utterances.findIndex(
+    (u) => currentTime >= u.start && currentTime <= u.end
   );
-
   useEffect(() => {
     if (activeIndex !== -1 && activeIndex !== lastActiveIndexRef.current) {
       lastActiveIndexRef.current = activeIndex;
-      activeRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
+      activeRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [activeIndex]);
 
-    const formatDuration = (seconds) => {
-      if (!seconds) return null;
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = seconds % 60;
-      return h > 0
-        ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-        : `${m}:${s.toString().padStart(2, "0")}`;
-    };
+  /* ── Format helpers ── */
+  const formatDuration = (seconds) => {
+    if (!seconds) return null;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h > 0
+      ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      : `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
-    const formatTimestamp = (ms) => {
-      if (ms === undefined || ms === null) return "-";
-      const totalSeconds = Math.floor(ms / 1000);
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      return h > 0
-        ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-        : `${m}:${s.toString().padStart(2, "0")}`;
-    };
+  const formatTimestamp = (ms) => {
+    if (ms === undefined || ms === null) return "-";
+    const total = Math.floor(ms / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return h > 0
+      ? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      : `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
-    const formatSpeakerLabel = (speakerId, role) => {
-      if (!speakerId) return role || "Speaker";
-      const number = speakerId.split("_")[1];
-      const speakerName = number ? `Speaker ${parseInt(number) + 1}` : speakerId;
-      return role ? `${speakerName} (${role})` : speakerName;
-    };
+  const formatSpeakerLabel = (speakerId, role) => {
+    if (!speakerId) return role || "Speaker";
+    const number = speakerId.split("_")[1];
+    const name   = number ? `Speaker ${parseInt(number) + 1}` : speakerId;
+    return role ? `${name} (${role})` : name;
+  };
 
-    const speakerColors = [
-      "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7",
-      "#d4cd06", "#ec4899", "#0c4b21", "#48e4ec", "#4f2846",
-    ];
+  const speakerColors = [
+    "#6366F1", "#2CB67D", "#F59E0B", "#E05252", "#A855F7",
+    amber,     "#EC4899", "#0C4B21", "#48E4EC", "#4F2846",
+  ];
+  const getSpeakerColor = (speakerId) => {
+    if (!speakerId) return "#64748B";
+    return speakerColors[parseInt(speakerId.split("_")[1] || 0) % speakerColors.length];
+  };
 
-    const getSpeakerColor = (speakerId) => {
-      if (!speakerId) return "#64748b";
-      const index = parseInt(speakerId.split("_")[1] || 0);
-      return speakerColors[index % speakerColors.length];
-    };
-
-    const normalizeSentiment = (value) => {
-      const v = String(value || "").trim().toLowerCase();
-      if (v === "positive") return "Positive";
-      if (v === "negative") return "Negative";
-      if (v === "neutral") return "Neutral";
-      return "Unknown";
-    };
-
-    const normalizeResolutionStatus = (value) => {
-      const v = String(value || "").trim().toLowerCase();
-      if (v === "resolved") return "Resolved";
-      if (v === "unresolved") return "Unresolved";
-      if (v === "pending") return "Pending";
-      if (v === "not applicable" || v === "not-applicable" || v === "non applicable" || v === "n/a" || v === "na") return "Not Applicable";
-      return "Unknown";
-    };
-
-    const normalizeChurnLevel = (value) => {
-      const v = String(value || "").trim().toLowerCase();
-      if (v === "high") return "High";
-      if (v === "medium") return "Medium";
-      if (v === "low") return "Low";
-      if (v === "not applicable" || v === "not-applicable" || v === "non applicable" || v === "n/a" || v === "na") return "Not Applicable";
-      return "Unknown";
-    };
-
-    const sentimentColor = (value) => {
-      const normalized = normalizeSentiment(value);
-      if (normalized === "Positive") return "success";
-      if (normalized === "Negative") return "error";
-      if (normalized === "Neutral") return "info";
-      return "default";
-    };
-
-    if (loading || (analysisLoading && !analysis)) {
-      return (
-        <Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3, mt: 1 }}>
-            <Skeleton variant="rectangular" width={120} height={36} sx={{ borderRadius: 1 }} />
-          </Box>
-          <Skeleton variant="text" width="40%" height={40} sx={{ mb: 0.5 }} />
-          <Skeleton variant="text" width="60%" height={24} sx={{ mb: 3 }} />
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {[1,2,3,4].map(i => (
-              <Grid item xs={12} sm={6} md={3} key={i}>
-                <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 2 }} />
-              </Grid>
-            ))}
-          </Grid>
-          <Skeleton variant="rectangular" height={48} sx={{ borderRadius: 1, mb: 1 }} />
-          <Skeleton variant="rectangular" height={400} sx={{ borderRadius: 2 }} />
-        </Box>
-      );
-    }
-
-    if (error || !analysis) {
-      return (
-        <Box>
-          <Button onClick={() => navigate("/assets")} sx={{ mb: 2 }}>Back</Button>
-          <Alert severity="error">{error || "Analysis not available"}</Alert>
-        </Box>
-      );
-    }
+  /* Highlight search matches */
   const highlightText = (text) => {
     if (!searchTerm) return text;
-
-    const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, "gi");
-    const parts = text.split(regex);
-    const highlightBg = isDark ? "rgba(250, 204, 21, 0.45)" : "rgba(250, 204, 21, 0.55)";
-    const highlightColor = isDark ? "#fef9c3" : "#1c1917";
-
-    return parts.map((part, i) =>
+    const esc   = (v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(${esc(searchTerm)})`, "gi");
+    return text.split(regex).map((part, i) =>
       part.toLowerCase() === searchTerm.toLowerCase() ? (
-        <span key={i} style={{ backgroundColor: highlightBg, color: highlightColor, padding: "0 2px", borderRadius: 2 }}>
+        <mark
+          key={i}
+          style={{
+            background: isDark ? "rgba(232,160,69,0.38)" : "rgba(232,160,69,0.32)",
+            color:      isDark ? "#F0C070" : "#7A4E00",
+            padding:    "0 2px",
+            borderRadius: 2,
+          }}
+        >
           {part}
-        </span>
+        </mark>
       ) : (
         part
       )
     );
   };
 
-    const renderExtractedInfo = (data, level = 0) => {
-      if (!data) return null;
+  /* Recursive extracted info renderer */
+  const renderExtractedInfo = (data, level = 0) => {
+    if (!data) return null;
 
-      if (typeof data === "string" || typeof data === "number") {
+    if (typeof data === "string" || typeof data === "number") {
+      return (
+        <Typography sx={{ ml: level * 2, fontSize: "0.8125rem", color: theme.palette.text.primary, mb: 0.25 }}>
+          {"• "}{String(data)}
+        </Typography>
+      );
+    }
+
+    if (Array.isArray(data)) {
+      return data.map((item, i) => <Box key={i}>{renderExtractedInfo(item, level)}</Box>);
+    }
+
+    if (data.Key !== undefined && data.Value !== undefined) {
+      if (Array.isArray(data.Value)) {
         return (
-          <Typography sx={{ ml: level * 3 }}>• {String(data)}</Typography>
+          <Box sx={{ ml: level * 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", mb: 0.25 }}>{"• "}{data.Key}</Typography>
+            {data.Value.map((child, idx) => (
+              <Box key={idx}>{renderExtractedInfo(child, level + 1)}</Box>
+            ))}
+          </Box>
         );
       }
-
-      if (Array.isArray(data)) {
-        return data.map((item, index) => (
-          <Box key={index}>{renderExtractedInfo(item, level)}</Box>
-        ));
+      if (typeof data.Value === "object" && data.Value !== null) {
+        return (
+          <Box sx={{ ml: level * 2 }}>
+            <Typography sx={{ fontSize: "0.8125rem", mb: 0.25 }}>{"• "}{data.Key}</Typography>
+            {renderExtractedInfo(data.Value, level + 1)}
+          </Box>
+        );
       }
-
-      if (data.Key !== undefined && data.Value !== undefined) {
-
-    // Value is ARRAY
-    if (Array.isArray(data.Value)) {
       return (
-        <Box sx={{ ml: level * 3 }}>
-          <Typography>• {data.Key}</Typography>
-          {data.Value.map((child, idx) => (
-            <Box key={idx}>{renderExtractedInfo(child, level + 1)}</Box>
-          ))}
-        </Box>
+        <Typography sx={{ ml: level * 2, fontSize: "0.8125rem", mb: 0.25 }}>
+          {"• "}
+          <Box component="span" sx={{ color: theme.palette.text.secondary }}>{data.Key}</Box>
+          {" \u2014 "}{String(data.Value)}
+        </Typography>
       );
     }
 
-    // Value is OBJECT (THIS IS YOUR FIX)
-    if (typeof data.Value === "object" && data.Value !== null) {
-      return (
-        <Box sx={{ ml: level * 3 }}>
-          <Typography>• {data.Key}</Typography>
-          {renderExtractedInfo(data.Value, level + 1)}
-        </Box>
-      );
-    }
+    return Object.entries(data).map(([key, value]) => (
+      <Box key={key} sx={{ ml: level * 2 }}>
+        <Typography sx={{ fontSize: "0.8125rem", fontWeight: 500, color: theme.palette.text.secondary, mb: 0.25 }}>
+          {"• "}{key}
+        </Typography>
+        {renderExtractedInfo(value, level + 1)}
+      </Box>
+    ));
+  };
 
-    // Primitive value
+  /* ── Loading skeleton ── */
+  if (loading || (analysisLoading && !analysis)) {
     return (
-      <Typography sx={{ ml: level * 3 }}>
-        • {data.Key} - {String(data.Value)}
-      </Typography>
+      <Box>
+        <Skeleton variant="text" width={100} height={32} sx={{ mb: 3 }} />
+        <Skeleton variant="text" width="38%" height={42} sx={{ mb: 0.5 }} />
+        <Skeleton variant="text" width="58%" height={20} sx={{ mb: 3 }} />
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {[1, 2, 3].map((i) => (
+            <Grid item xs={12} sm={4} key={i}>
+              <Skeleton variant="rectangular" height={80} sx={{ borderRadius: "6px" }} />
+            </Grid>
+          ))}
+        </Grid>
+        <Skeleton variant="rectangular" height={44} sx={{ borderRadius: "6px", mb: 0.5 }} />
+        <Skeleton variant="rectangular" height={440} sx={{ borderRadius: "6px" }} />
+      </Box>
     );
   }
 
-      return Object.entries(data).map(([key, value]) => (
-        <Box key={key} sx={{ ml: level * 3 }}>
-          <Typography>• {key}</Typography>
-          {renderExtractedInfo(value, level + 1)}
-        </Box>
-      ));
-    };
-
-    // ─── Duration display ───────────────────────────────────────────────────────
-    const durationFormatted = formatDuration(analysis.call_length);
-    const resolutionStatus = normalizeResolutionStatus(insights?.ResolutionData?.Status);
-    const churnLevel = normalizeChurnLevel(insights?.ChurnRisk?.Level);
-
+  /* ── Error state ── */
+  if (error || !analysis) {
     return (
       <Box>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 3 }}>
-          <Button onClick={() => navigate("/assets")} variant="outlined" size="medium">
-            Back to assets
-          </Button>
-        </Box>
+        <Button
+          startIcon={<ArrowBackIcon sx={{ fontSize: 15 }} />}
+          onClick={() => navigate("/assets")}
+          sx={{ mb: 2 }}
+        >
+          Back
+        </Button>
+        <Alert severity="error">{error || "Analysis not available"}</Alert>
+      </Box>
+    );
+  }
 
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>Analysis</Typography>
-        <Typography
-          variant="body1"
-          color="text.secondary"
+  /* ── Computed display values ── */
+  const durationFormatted = formatDuration(analysis.call_length);
+  const resolutionStatus  = normalizeResolutionStatus(insights?.ResolutionData?.Status);
+  const churnLevel        = normalizeChurnLevel(insights?.ChurnRisk?.Level);
+  const statusColor = { Resolved: "success", Unresolved: "error", Pending: "warning" };
+  const churnColor  = { High: "error",       Medium: "warning",   Low: "success"     };
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     RENDER
+  ───────────────────────────────────────────────────────────────────────── */
+  return (
+    <Box>
+
+      {/* ── Top action bar ── */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 2,
+          mb: 3,
+        }}
+      >
+        <Button
+          startIcon={<ArrowBackIcon sx={{ fontSize: 15 }} />}
+          onClick={() => navigate("/assets")}
+          variant="outlined"
+          size="small"
           sx={{
-            maxWidth: "100%",
-            overflowWrap: "anywhere",
-            wordBreak: "break-word",
-            mb: 3,
+            fontSize: "0.8125rem",
+            py: 0.5, px: 1.5,
+            borderColor: theme.palette.divider,
+            color: theme.palette.text.secondary,
+            "&:hover": { borderColor: amber + "60", color: amber },
+          }}
+        >
+          Back to assets
+        </Button>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }}>
+          {/* Analysis language switcher */}
+          {analysis?.available_analysis_languages?.includes("original") && (
+            <Box>
+              <Select
+                size="small"
+                value={analysisLanguage}
+                onChange={(e) => setAnalysisLanguage(e.target.value)}
+                disabled={analysisLoading}
+                sx={{ fontSize: "0.8125rem", height: 34, minWidth: 180 }}
+              >
+                <MenuItem value="en">Analysis: English</MenuItem>
+                <MenuItem value="original">Analysis: Original</MenuItem>
+              </Select>
+              {analysisLoading && (
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", mt: 0.5, color: "text.secondary" }}
+                >
+                  Updating&hellip;
+                </Typography>
+              )}
+            </Box>
+          )}
+
+          {/* Export menu */}
+          <Button
+            variant="outlined"
+            size="small"
+            endIcon={<DownloadIcon sx={{ fontSize: 15 }} />}
+            onClick={openExportMenu}
+            sx={{
+              fontSize: "0.8125rem",
+              py: 0.5, px: 1.5, height: 34,
+              borderColor: theme.palette.divider,
+              color: theme.palette.text.secondary,
+              "&:hover": { borderColor: amber + "60", color: amber },
+            }}
+          >
+            Export
+          </Button>
+          <Menu
+            anchorEl={exportAnchorEl}
+            open={Boolean(exportAnchorEl)}
+            onClose={closeExportMenu}
+          >
+            <MenuItem
+              onClick={() => downloadTranscript("pdf")}
+              sx={{ fontSize: "0.8125rem" }}
+            >
+              Download Transcript PDF
+            </MenuItem>
+            <MenuItem
+              onClick={() => downloadAnalysis("pdf", "en")}
+              sx={{ fontSize: "0.8125rem" }}
+            >
+              Download Analysis PDF (English)
+            </MenuItem>
+            <MenuItem
+              onClick={() => downloadAnalysis("pdf", "original")}
+              disabled={!(analysis?.available_analysis_languages ?? []).includes("original")}
+              sx={{ fontSize: "0.8125rem" }}
+            >
+              Download Analysis PDF (Original)
+            </MenuItem>
+          </Menu>
+        </Box>
+      </Box>
+
+      {/* ── File header ── */}
+      <Box sx={{ mb: 3 }}>
+        <Typography
+          sx={{
+            fontFamily: '"DM Serif Display", serif',
+            fontSize: "1.6rem",
+            fontWeight: 400,
+            color: theme.palette.text.primary,
+            mb: 0.25,
+          }}
+        >
+          Analysis
+        </Typography>
+        <Typography
+          sx={{
+            fontSize: "0.8125rem",
+            color: theme.palette.text.secondary,
+            fontFamily: '"DM Mono", monospace',
+            letterSpacing: "-0.01em",
+            wordBreak: "break-all",
           }}
         >
           {analysis.filename}
         </Typography>
+      </Box>
 
-        {/* ── Top summary cards ── */}
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>Language</Typography>
-                {isEmpty(analysis.language)
-                  ? <EmptyState message="Language not detected" compact />
-                  : <Typography variant="h6">{analysis.language.toUpperCase()}</Typography>
-                }
-              </CardContent>
-            </Card>
+      {/* ── Summary metric cards ── */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          {
+            label: "Language",
+            content: isEmpty(analysis.language) ? (
+              <FieldEmpty message="Not detected" compact />
+            ) : (
+              <Typography
+                sx={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: "1.1rem",
+                  fontWeight: 500,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                {analysis.language.toUpperCase()}
+              </Typography>
+            ),
+          },
+          {
+            label: "Duration",
+            content: !durationFormatted ? (
+              <FieldEmpty message="Unavailable" compact />
+            ) : (
+              <Typography
+                sx={{
+                  fontFamily: '"DM Mono", monospace',
+                  fontSize: "1.1rem",
+                  fontWeight: 500,
+                  color: theme.palette.text.primary,
+                }}
+              >
+                {durationFormatted}
+              </Typography>
+            ),
+          },
+          {
+            label: "Overall Sentiment",
+            content: isEmpty(insights.OverallSentiment || insights.Sentiment) ? (
+              <FieldEmpty message="Not analysed" compact />
+            ) : (
+              <Chip
+                label={normalizeSentiment(insights.OverallSentiment || insights.Sentiment)}
+                color={sentimentColor(insights.OverallSentiment || insights.Sentiment)}
+              />
+            ),
+          },
+        ].map(({ label, content }) => (
+          <Grid item xs={12} sm={4} key={label}>
+            <Box
+              sx={{
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: "6px",
+                backgroundColor: theme.palette.background.paper,
+                px: 2,
+                py: 1.75,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: "0.6875rem",
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: theme.palette.text.disabled,
+                  mb: 0.75,
+                }}
+              >
+                {label}
+              </Typography>
+              {content}
+            </Box>
           </Grid>
+        ))}
+      </Grid>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>Duration</Typography>
-                {!durationFormatted
-                  ? <EmptyState message="Duration unavailable" compact />
-                  : <Typography variant="h6">{durationFormatted}</Typography>
-                }
-              </CardContent>
-            </Card>
-          </Grid>
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB PANEL
+      ══════════════════════════════════════════════════════════════════ */}
+      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+        <Tabs
+          value={tabValue}
+          onChange={(e, v) => setTabValue(v)}
+          variant="scrollable"
+          scrollButtons="auto"
+          textColor="primary"
+          indicatorColor="primary"
+        >
+          {["Call Summary","Insights","General Info","Sentiment Analysis","Transcript","Analytics","Ask AI"].map(
+            (label) => <Tab key={label} label={label} />
+          )}
+        </Tabs>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <Card variant="outlined" sx={{ height: "100%" }}>
-              <CardContent sx={{ "&:last-child": { pb: 2 } }}>
-                <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>Overall Sentiment</Typography>
-                {isEmpty(insights.OverallSentiment || insights.Sentiment)
-                  ? <EmptyState message="Sentiment not analysed" compact />
-                  : (
-                    <Chip
-                      label={normalizeSentiment(insights.OverallSentiment || insights.Sentiment)}
-                      color={sentimentColor(insights.OverallSentiment || insights.Sentiment)}
-                    />
-                  )
-                }
-              </CardContent>
-            </Card>
-          </Grid>
+        {/* ════════════════ TAB 0 — Call Summary ════════════════ */}
+        {tabValue === 0 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
 
-          <Grid item xs={12} md={3} sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", flexWrap: "nowrap", gap: 1 }}>
-            {analysis?.available_analysis_languages?.includes("original") && (
-              <Box sx={{ width: 190, flexShrink: 0 }}>
-                <Select
-                  size="small"
-                  value={analysisLanguage}
-                  onChange={(e) => setAnalysisLanguage(e.target.value)}
-                  disabled={analysisLoading}
-                  sx={{ width: 190 }}
-                >
-                  <MenuItem value="en">Analysis: English</MenuItem>
-                  <MenuItem value="original">Analysis: Original</MenuItem>
-                </Select>
-                {analysisLoading && (
-                  <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "text.secondary" }}>
-                    Updating language...
+            <SectionLabel mt={0}>Call Type</SectionLabel>
+            <InfoSurface>
+              {isEmpty(insights.CallType)
+                ? <FieldEmpty message="Call type was not identified" />
+                : <Typography sx={{ fontSize: "0.9rem" }}>{insights.CallType}</Typography>}
+            </InfoSurface>
+
+            <SectionLabel>Audio Environment</SectionLabel>
+            <InfoSurface>
+              {isEmpty(insights.AudioEnvironment)
+                ? <FieldEmpty message="Audio environment details not captured" />
+                : <Typography sx={{ fontSize: "0.9rem" }}>{insights.AudioEnvironment}</Typography>}
+            </InfoSurface>
+
+            <SectionLabel>Participants</SectionLabel>
+            {isEmpty(insights.Participants)
+              ? <InfoSurface><FieldEmpty message="No participant information found" /></InfoSurface>
+              : (insights.Participants || []).map((p, i) => (
+                <Box key={i} sx={{ mb: 1 }}>
+                  <InfoSurface>
+                    <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+                      {["name", "role"].map((field) => (
+                        <Box key={field}>
+                          <Typography
+                            sx={{
+                              fontSize: "0.6875rem", fontWeight: 600,
+                              letterSpacing: "0.06em", textTransform: "uppercase",
+                              color: theme.palette.text.disabled, mb: 0.25,
+                            }}
+                          >
+                            {field.charAt(0).toUpperCase() + field.slice(1)}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "0.875rem",
+                              color: isEmpty(p[field]) ? theme.palette.text.disabled : theme.palette.text.primary,
+                              fontStyle: isEmpty(p[field]) ? "italic" : "normal",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {isEmpty(p[field]) ? "not provided" : p[field]}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </InfoSurface>
+                </Box>
+              ))
+            }
+
+            <SectionLabel>Call Summary</SectionLabel>
+            <InfoSurface>
+              {isEmpty(insights.CallSummary)
+                ? <FieldEmpty message="No summary was generated for this call" />
+                : (
+                  <Typography sx={{ fontSize: "0.9rem", lineHeight: 1.7, color: theme.palette.text.primary }}>
+                    {insights.CallSummary}
                   </Typography>
                 )}
-              </Box>
-            )}
+            </InfoSurface>
 
-            <Button variant="contained" endIcon={<DownloadIcon />} onClick={openExportMenu}>
-              Export
-            </Button>
-            <Menu anchorEl={exportAnchorEl} open={Boolean(exportAnchorEl)} onClose={closeExportMenu}>
-              <MenuItem onClick={() => downloadTranscript("pdf")}>Download Transcript PDF</MenuItem>
-              <MenuItem onClick={() => downloadAnalysis("pdf", "en")}>
-                Download Analysis PDF (English)
-              </MenuItem>
-              <MenuItem
-                onClick={() => downloadAnalysis("pdf", "original")}
-                disabled={!analysis?.available_analysis_languages?.includes("original")}
-              >
-                Download Analysis PDF (Original)
-              </MenuItem>
-            </Menu>
-
-          </Grid>
-
-        </Grid>
-
-      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
-          <Tabs
-            value={tabValue}
-            onChange={(e, v) => setTabValue(v)}
-            textColor="primary"
-            indicatorColor="primary"
-            sx={{
-              "& .MuiTab-root": {
-                color: "text.primary",
-                fontSize: "1.05rem",
-                fontWeight: 600,
-                textTransform: "none",
-              },
-              "& .MuiTab-root.Mui-selected": {
-                color: "primary.main",
-                fontWeight: 700,
-              },
-            }}
-          >
-            <Tab label="Call Summary" />
-            <Tab label="Insights" />
-            <Tab label="General Info" />
-            <Tab label="Sentiment Analysis" />
-            <Tab label="Transcript" />
-            <Tab label="Analytics" />
-            <Tab label="Ask AI" />
-          </Tabs>
-
-          {/* ════════════════════════════════════════
-              TAB 0 — Call Summary
-          ════════════════════════════════════════ */}
-          {tabValue === 0 && (
-            <Box sx={{ p: { xs: 2, sm: 3 } }}>
-
-              {/* Call Type */}
-              <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Call Type</Typography>
-              <Card sx={{ mb: 2 }}>
-                <CardContent>
-                  {isEmpty(insights.CallType)
-                    ? <EmptyState message="Call type was not identified" />
-                    : <Typography variant="body1">{insights.CallType}</Typography>
-                  }
-                </CardContent>
-              </Card>
-
-              {/* Audio Environment */}
-              <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Audio Environment</Typography>
-              <Card sx={{ mb: 2 }}>
-                <CardContent>
-                  {isEmpty(insights.AudioEnvironment)
-                    ? <EmptyState message="Audio environment details not captured" />
-                    : <Typography variant="body1">{insights.AudioEnvironment}</Typography>
-                  }
-                </CardContent>
-              </Card>
-
-              {/* Participants */}
-              <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>Participants</Typography>
-              {isEmpty(insights.Participants)
-                ? <EmptyState message="No participant information found" />
-                : (insights.Participants || []).map((p, i) => (
-                  <Card key={i} sx={{ mb: 1 }}>
-                    <CardContent>
-                      <Typography fontWeight={600}>
-                        Name: {isEmpty(p.name) ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic", fontWeight: 400 }}>not provided</span> : p.name}
-                      </Typography>
-                      <Typography fontWeight={600}>
-                        Role: {isEmpty(p.role) ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic", fontWeight: 400 }}>not provided</span> : p.role}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                ))
-              }
-
-              {/* Call Summary */}
-              <Typography variant="h6" sx={{ mt: 3 }}>Call Summary</Typography>
-              <Paper sx={{ p: 2, mt: 1 }}>
-                {isEmpty(insights.CallSummary)
-                  ? <EmptyState message="No summary was generated for this call" />
-                  : <Typography>{insights.CallSummary}</Typography>
-                }
-              </Paper>
-
+            <Grid container spacing={2} sx={{ mt: 0 }}>
               {/* Resolution */}
-              <Typography variant="h6" sx={{ mt: 3 }}>Resolution Data</Typography>
-              <Card sx={{ mt: 1 }}>
-                <CardContent>
-                  {isEmpty(insights.ResolutionData)
-                    ? <EmptyState message="Resolution data not available" />
-                    : (
-                      <>
-                        <Typography>
-                          Status:{" "}
-                          {isEmpty(insights.ResolutionData?.Status)
-                            ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>unknown</span>
-                            : (
-                              <Chip
-                                label={resolutionStatus}
-                                color={
-                                  resolutionStatus === "Unresolved" ? "error"
-                                  : resolutionStatus === "Pending" ? "warning"
-                                  : resolutionStatus === "Resolved" ? "success"
-                                  : "default"
-                                }
-                                sx={{ mb: 1 }}
-                              />
-                            )
-                          }
+              <Grid item xs={12} md={6}>
+                <SectionLabel mt={2}>Resolution Data</SectionLabel>
+                <InfoSurface noPad>
+                  {isEmpty(insights.ResolutionData) ? (
+                    <Box sx={{ px: 2, py: 1.75 }}><FieldEmpty message="Resolution data not available" /></Box>
+                  ) : (
+                    <>
+                      <Box
+                        sx={{
+                          px: 2, py: 1.5,
+                          display: "flex", alignItems: "center", gap: 1.5,
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: "0.75rem", color: theme.palette.text.disabled, minWidth: 48 }}>
+                          Status
                         </Typography>
-                        <Typography>
-                          Reason:{" "}
-                          {isEmpty(insights.ResolutionData?.Reason)
-                            ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>no reason recorded</span>
-                            : insights.ResolutionData.Reason
-                          }
+                        {isEmpty(insights.ResolutionData?.Status) ? (
+                          <FieldEmpty message="unknown" compact />
+                        ) : (
+                          <Chip
+                            label={resolutionStatus}
+                            size="small"
+                            color={statusColor[resolutionStatus] || "default"}
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ px: 2, py: 1.5 }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: theme.palette.text.disabled, mb: 0.5 }}>
+                          Reason
                         </Typography>
-                      </>
-                    )
-                  }
-                </CardContent>
-              </Card>
+                        <Typography
+                          sx={{
+                            fontSize: "0.875rem",
+                            color: isEmpty(insights.ResolutionData?.Reason)
+                              ? theme.palette.text.disabled
+                              : theme.palette.text.primary,
+                            fontStyle: isEmpty(insights.ResolutionData?.Reason) ? "italic" : "normal",
+                          }}
+                        >
+                          {isEmpty(insights.ResolutionData?.Reason) ? "no reason recorded" : insights.ResolutionData.Reason}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+                </InfoSurface>
+              </Grid>
 
               {/* Churn Risk */}
-              <Typography variant="h6" sx={{ mt: 3 }}>Churn Risk</Typography>
-              <Card sx={{ mt: 1 }}>
-                <CardContent>
-                  {isEmpty(insights.ChurnRisk)
-                    ? <EmptyState message="Churn risk assessment not available" />
-                    : (
-                      <>
-                        <Typography>
-                          Level:{" "}
-                          {isEmpty(insights.ChurnRisk?.Level)
-                            ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>unknown</span>
-                            : (
-                              <Chip
-                                label={churnLevel}
-                                color={
-                                  churnLevel === "High" ? "error"
-                                  : churnLevel === "Medium" ? "warning"
-                                  : churnLevel === "Low" ? "success"
-                                  : "default"
-                                }
-                                sx={{ mb: 1 }}
-                              />
-                            )
-                          }
+              <Grid item xs={12} md={6}>
+                <SectionLabel mt={2}>Churn Risk</SectionLabel>
+                <InfoSurface noPad>
+                  {isEmpty(insights.ChurnRisk) ? (
+                    <Box sx={{ px: 2, py: 1.75 }}><FieldEmpty message="Churn risk assessment not available" /></Box>
+                  ) : (
+                    <>
+                      <Box
+                        sx={{
+                          px: 2, py: 1.5,
+                          display: "flex", alignItems: "center", gap: 1.5,
+                          borderBottom: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        <Typography sx={{ fontSize: "0.75rem", color: theme.palette.text.disabled, minWidth: 48 }}>
+                          Level
                         </Typography>
-                        <Typography>
-                          Reason:{" "}
-                          {isEmpty(insights.ChurnRisk?.Reason)
-                            ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>no reason recorded</span>
-                            : insights.ChurnRisk.Reason
-                          }
+                        {isEmpty(insights.ChurnRisk?.Level) ? (
+                          <FieldEmpty message="unknown" compact />
+                        ) : (
+                          <Chip
+                            label={churnLevel}
+                            size="small"
+                            color={churnColor[churnLevel] || "default"}
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ px: 2, py: 1.5 }}>
+                        <Typography sx={{ fontSize: "0.75rem", color: theme.palette.text.disabled, mb: 0.5 }}>
+                          Reason
                         </Typography>
-                      </>
-                    )
-                  }
-                </CardContent>
-              </Card>
-            </Box>
-          )}
+                        <Typography
+                          sx={{
+                            fontSize: "0.875rem",
+                            color: isEmpty(insights.ChurnRisk?.Reason)
+                              ? theme.palette.text.disabled
+                              : theme.palette.text.primary,
+                            fontStyle: isEmpty(insights.ChurnRisk?.Reason) ? "italic" : "normal",
+                          }}
+                        >
+                          {isEmpty(insights.ChurnRisk?.Reason) ? "no reason recorded" : insights.ChurnRisk.Reason}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+                </InfoSurface>
+              </Grid>
+            </Grid>
+          </Box>
+        )}
 
-          {/* ════════════════════════════════════════
-              TAB 1 — Insights
-          ════════════════════════════════════════ */}
-          {tabValue === 1 && (
-            <Box sx={{ p: 3 }}>
+        {/* ════════════════ TAB 1 — Insights ════════════════ */}
+        {tabValue === 1 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
 
-              <Typography variant="h6">Strengths</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
+            <SectionLabel mt={0}>Strengths</SectionLabel>
+            <InfoSurface>
               {isEmpty(insights.KeyStrengths)
-                ? <EmptyState message="No strengths were identified for this call" />
+                ? <FieldEmpty message="No strengths were identified for this call" />
                 : (insights.KeyStrengths || []).map((s, i) => (
-                  <Typography key={i}>• {s}</Typography>
-                ))
-              }
-  </CardContent>
-  </Card>
-              <Typography variant="h6" sx={{ mt: 3 }}>Areas of Improvement</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
+                  <Typography key={i} sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                    <Box component="span" sx={{ color: "#2CB67D", mr: 1 }}>&#10003;</Box>{s}
+                  </Typography>
+                ))}
+            </InfoSurface>
+
+            <SectionLabel>Areas of Improvement</SectionLabel>
+            <InfoSurface>
               {isEmpty(insights.AreasOfImprovement)
-                ? <EmptyState message="No improvement areas were flagged" />
+                ? <FieldEmpty message="No improvement areas were flagged" />
                 : (insights.AreasOfImprovement || []).map((s, i) => (
-                  <Typography key={i}>• {s}</Typography>
-                ))
-              }
-              </CardContent>
-  </Card>
+                  <Typography key={i} sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                    <Box component="span" sx={{ color: amber, mr: 1 }}>&#8594;</Box>{s}
+                  </Typography>
+                ))}
+            </InfoSurface>
 
-              <Typography variant="h6" sx={{ mt: 3 }}>Keywords</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
-              {isEmpty(insights.KeywordCounts)
-                ? <EmptyState message="No keywords were extracted" />
-                : Object.entries(insights.KeywordCounts).map(([k, v]) => (
-                  <Chip key={k} label={`${k}: ${v}`} sx={{ mr: 1, mb: 1 }} />
-                ))
-              }
-              </CardContent>
-  </Card>
-            </Box>
-          )}
+            <SectionLabel>Keywords</SectionLabel>
+            {isEmpty(insights.KeywordCounts) ? (
+              <InfoSurface><FieldEmpty message="No keywords were extracted" /></InfoSurface>
+            ) : (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                {Object.entries(insights.KeywordCounts).map(([k, v]) => (
+                  <Box
+                    key={k}
+                    sx={{
+                      display: "inline-flex", alignItems: "center", gap: 0.75,
+                      px: 1.25, py: 0.4,
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: "4px",
+                      backgroundColor: theme.palette.background.paper,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: "0.8125rem", fontWeight: 500 }}>{k}</Typography>
+                    <Box
+                      sx={{
+                        px: 0.6, py: 0.1, borderRadius: "3px",
+                        backgroundColor: amber + "20",
+                        border: `1px solid ${amber}30`,
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: "0.6875rem",
+                          fontFamily: '"DM Mono", monospace',
+                          color: amber, fontWeight: 500,
+                        }}
+                      >
+                        {v}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
 
-          {/* ════════════════════════════════════════
-              TAB 2 — General Info
-          ════════════════════════════════════════ */}
-          {tabValue === 2 && (
-            <Box sx={{ p: 3 }}>
+        {/* ════════════════ TAB 2 — General Info ════════════════ */}
+        {tabValue === 2 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
 
-              <Typography variant="h6">Topics</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
+            <SectionLabel mt={0}>Topics</SectionLabel>
+            <InfoSurface>
               {isEmpty(insights.Topics)
-                ? <EmptyState message="No topics were identified" />
+                ? <FieldEmpty message="No topics were identified" />
                 : (insights.Topics || []).map((t, i) => (
-                  <Typography key={i}>
-                    • {t.topic}{t.description ? ` - ${t.description}` : ""}
+                  <Typography key={i} sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                    {"• "}
+                    <Box component="span" sx={{ fontWeight: 500 }}>{t.topic}</Box>
+                    {t.description && (
+                      <Box component="span" sx={{ color: theme.palette.text.secondary }}>
+                        {" \u2014 "}{t.description}
+                      </Box>
+                    )}
                   </Typography>
-                ))
-              }
-  </CardContent>
-  </Card>
-              <Typography variant="h6" sx={{ mt: 3 }}>Technical Terms</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
+                ))}
+            </InfoSurface>
+
+            <SectionLabel>Technical Terms</SectionLabel>
+            <InfoSurface>
               {isEmpty(insights.TechnicalTerms)
-                ? <EmptyState message="No technical terms were detected" />
+                ? <FieldEmpty message="No technical terms were detected" />
                 : (insights.TechnicalTerms || []).map((t, i) => (
-                  <Typography key={i}>
-                    • {t.term}{t.explanation ? ` - ${t.explanation}` : ""}
+                  <Typography key={i} sx={{ fontSize: "0.875rem", mb: 0.5 }}>
+                    {"• "}
+                    <Box component="span" sx={{ fontWeight: 500, fontFamily: '"DM Mono", monospace', fontSize: "0.8125rem" }}>
+                      {t.term}
+                    </Box>
+                    {t.explanation && (
+                      <Box component="span" sx={{ color: theme.palette.text.secondary, fontFamily: "inherit" }}>
+                        {" \u2014 "}{t.explanation}
+                      </Box>
+                    )}
                   </Typography>
-                ))
-              }
-  </CardContent>
-  </Card>
-              <Typography variant="h6" sx={{ mt: 3 }}>Tasks</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
+                ))}
+            </InfoSurface>
+
+            <SectionLabel>Tasks</SectionLabel>
+            <InfoSurface>
               {isEmpty(insights.Tasks)
-                ? <EmptyState message="No tasks or action items were found" />
+                ? <FieldEmpty message="No tasks or action items were found" />
                 : (insights.Tasks || []).map((task, i) => (
-                  <Typography key={i} sx={{ mt: 1 }}>
-                      {typeof task === "string" && (
-                        <Typography>• {task}</Typography>
-                      )}
-                      {typeof task === "object" && !Array.isArray(task) && (
-                        Object.entries(task).map(([key, value], idx) => (
-                          <Typography key={idx}>
-                            <strong>{key}:</strong>{" "}
-                            {isEmpty(value)
-                              ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>not specified</span>
-                              : typeof value === "object" ? JSON.stringify(value) : String(value)
-                            }
-                          </Typography>
-                        ))
-                      )}
-                      
-                  </Typography>
-                    
-                ))
-              }
-              </CardContent>
-                  </Card>
-
-              <Typography variant="h6" sx={{ mt: 3 }}>Extracted Information</Typography>
-              <Card sx={{ mt: 1 }}>
-        <CardContent>
-              {isEmpty(insights.ExtractedInformation)
-                ? <EmptyState message="No structured information was extracted" />
-                : renderExtractedInfo(insights.ExtractedInformation)
-              }
-              </CardContent>
-  </Card>
-            </Box>
-          )}
-
-          {/* ════════════════════════════════════════
-              TAB 3 — Sentiment Analysis
-          ════════════════════════════════════════ */}
-          {tabValue === 3 && (
-            <Box sx={{ p: { xs: 2, sm: 3 } }}>
-              {isEmpty(sentenceSentiment)
-                ? <EmptyState message="Sentence-level sentiment analysis was not performed on this call" />
-                : sentenceSentiment.map((item, i) => (
                   <Box
                     key={i}
                     sx={{
-                      p: 2,
-                      mb: 2,
-                      borderRadius: 2,
-                      bgcolor: "action.hover",
-                      border: `1px solid ${theme.palette.divider}`,
+                      mb: 1.5, pb: 1.5,
+                      borderBottom: i < insights.Tasks.length - 1
+                        ? `1px solid ${theme.palette.divider}`
+                        : "none",
                     }}
                   >
-                    <Chip
-                      label={normalizeSentiment(item.sentiment)}
-                      color={sentimentColor(item.sentiment)}
-                      size="small"
-                      sx={{ mb: 1 }}
-                    />
-                    <Typography>{item.text}</Typography>
+                    {typeof task === "string" && (
+                      <Typography sx={{ fontSize: "0.875rem" }}>{"• "}{task}</Typography>
+                    )}
+                    {typeof task === "object" && !Array.isArray(task) &&
+                      Object.entries(task).map(([key, value], idx) => (
+                        <Box key={idx} sx={{ display: "flex", gap: 1, mb: 0.25 }}>
+                          <Typography
+                            sx={{
+                              fontSize: "0.75rem", fontWeight: 600,
+                              color: theme.palette.text.disabled,
+                              minWidth: 72, textTransform: "uppercase",
+                              letterSpacing: "0.05em", pt: 0.1, flexShrink: 0,
+                            }}
+                          >
+                            {key}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "0.875rem",
+                              color: isEmpty(value) ? theme.palette.text.disabled : theme.palette.text.primary,
+                              fontStyle: isEmpty(value) ? "italic" : "normal",
+                              flex: 1,
+                            }}
+                          >
+                            {isEmpty(value)
+                              ? "not specified"
+                              : typeof value === "object" ? JSON.stringify(value) : String(value)}
+                          </Typography>
+                        </Box>
+                      ))
+                    }
                   </Box>
-                ))
-              }
-            </Box>
-          )}
+                ))}
+            </InfoSurface>
 
-          {/* ════════════════════════════════════════
-      TAB 4 — Transcript
-  ════════════════════════════════════════ */}
-  {tabValue === 4 && (
-    <Box sx={{ p: { xs: 2, sm: 3 }, display: "flex", flexDirection: "column", height: "72vh" }}>
-      <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", gap: 1.5, mb: 2 }}>
-        {availableTranscriptVariants.length > 1 && (
-          <Select
-            size="small"
-            value={selectedTranscriptVariant}
-            onChange={(e) => setSelectedTranscriptVariant(e.target.value)}
-            sx={{ minWidth: 120 }}
-          >
-            <MenuItem value="original">Original</MenuItem>
-            {availableTranscriptVariants.includes("en") && <MenuItem value="en">English</MenuItem>}
-          </Select>
+            <SectionLabel>Extracted Information</SectionLabel>
+            <InfoSurface>
+              {isEmpty(insights.ExtractedInformation)
+                ? <FieldEmpty message="No structured information was extracted" />
+                : renderExtractedInfo(insights.ExtractedInformation)}
+            </InfoSurface>
+          </Box>
         )}
-        <TextField
-          size="small"
-          placeholder="Search transcript…"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ width: 180 }}
-          aria-label="Search in transcript"
-          InputProps={{
-            endAdornment: searchTerm ? (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  onClick={() => setSearchTerm("")}
-                  aria-label="Clear transcript search"
+
+        {/* ════════════════ TAB 3 — Sentiment Analysis ════════════════ */}
+        {tabValue === 3 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            {isEmpty(sentenceSentiment)
+              ? <FieldEmpty message="Sentence-level sentiment analysis was not performed on this call" />
+              : sentenceSentiment.map((item, i) => (
+                <Box
+                  key={i}
+                  sx={{
+                    display: "flex", gap: 1.5, mb: 1.5,
+                    p: 1.75,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "6px",
+                    backgroundColor: theme.palette.background.paper,
+                  }}
                 >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : null,
-          }}
-        />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ minWidth: 42 }}>
-            {transcriptMatches.length > 0 ? `${searchMatchPointer + 1}/${transcriptMatches.length}` : "No results"}
-          </Typography>
-          <Tooltip title="Previous match">
-            <span>
-              <IconButton
-                size="small"
-                sx={{ p: 0.5 }}
-                onClick={gotoPrevSearchMatch}
-                disabled={transcriptMatches.length === 0}
-                aria-label="Previous match"
-              >
-                <KeyboardArrowUpIcon />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Next match">
-            <span>
-              <IconButton
-                size="small"
-                sx={{ p: 0.5 }}
-                onClick={gotoNextSearchMatch}
-                disabled={transcriptMatches.length === 0}
-                aria-label="Next match"
-              >
-                <KeyboardArrowDownIcon />
-              </IconButton>
-            </span>
-          </Tooltip>
-        </Box>
-      </Box>
-    {/* Audio Player with sentiment overlay */}
-    <WaveformPlayer
-      ref={waveformPlayerRef}
-      audioSrc={audioSrc}
-      onTimeUpdate={handleTimeUpdate}
-    />
-      {/* Transcript */}
-      <Box sx={{ flex: 1, overflowY: "auto", pr: 1 }}>
-      {isEmpty(utterances) ? (
-        <EmptyState message="No transcript is available for this recording" />
-      ) : (
-        utterances.map((u, i) => {
+                  <Chip
+                    label={normalizeSentiment(item.sentiment)}
+                    color={sentimentColor(item.sentiment)}
+                    size="small"
+                    sx={{ mt: 0.125, flexShrink: 0, height: 20, fontSize: "0.6875rem" }}
+                  />
+                  <Typography sx={{ fontSize: "0.875rem", lineHeight: 1.6 }}>
+                    {item.text}
+                  </Typography>
+                </Box>
+              ))}
+          </Box>
+        )}
 
-          const isActive =
-            currentTime >= u.start &&
-            currentTime <= u.end;
-
-          return (
+        {/* ════════════════ TAB 4 — Transcript ════════════════ */}
+        {tabValue === 4 && (
+          <Box
+            sx={{
+              p: { xs: 2, sm: 3 },
+              display: "flex",
+              flexDirection: "column",
+              height: "72vh",
+            }}
+          >
+            {/* Toolbar */}
             <Box
-              key={i}
-              id={`utt-${i}`}
-              ref={isActive ? activeRef : null}
-              onClick={() => {
-                waveformPlayerRef.current?.seekTo(u.start);
-              }}
-
-
               sx={{
                 display: "flex",
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: 1,
                 mb: 2,
-                borderRadius: 2,
-                overflow: "hidden",
-                cursor: "pointer",
-                backgroundColor: isActive
-    ? theme.palette.action.selected
-    : theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                boxShadow:
-                  i === activeSearchUtteranceIndex
-                    ? `0 0 0 2px ${theme.palette.primary.main}`
-                    : "none",
-                transition: "background-color 0.2s ease"
               }}
             >
-              {/* Colored speaker bar */}
+              {/* Transcript language selector — shown when both original and en variants exist */}
               <Box
-                sx={{
-                  width: 6,
-                  backgroundColor: getSpeakerColor(u.speaker_id)
-                }}
-              />
-
-              {/* Content */}
-              <Box sx={{ p: 2, flex: 1 }}>
-                <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                  {formatTimestamp(u.start)} | {formatSpeakerLabel(u.speaker_id, u.role)}
-                </Typography>
-
-                <Typography sx={{ mt: 0.5 }}>
-                  {isEmpty(highlightText(u.text))
-                    ? <span style={{ color: theme.palette.text.disabled, fontStyle: "italic" }}>no speech detected</span>
-                    : highlightText(u.text)
-                  }
-                </Typography>
-              </Box>
-
-            </Box>
-          );
-        })
-      )}
-      </Box>
-      </Box>
-
-  )}
-  {/* ════════════════════════════════════════
-      TAB 5 — Analytics
-  ════════════════════════════════════════ */}
-  {tabValue === 5 && (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
-      <Grid container spacing={3}>
-
-        {/* FULL WIDTH DONUT */}
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Talk Time Analytics
-              </Typography>
-
-              <Grid container spacing={2} alignItems="stretch">
-                <Grid item xs={12} md={talkData.length > 8 ? 7 : 8}>
-                  <Box sx={{ height: "100%", minHeight: 400 }}>
-                    <ReactECharts option={talkTimeOption} style={{ height: "100%" }} />
-                  </Box>
-                </Grid>
-
-    <Grid item xs={12} md={talkData.length > 8 ? 5 : 4}>
-    <Box
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 1.5,
+    mb: 2,
+    flexWrap: "wrap",
+  }}
+>
+  {/* LEFT: Transcript selector */}
+  {availableTranscriptVariants.length > 1 && (
+    <Select
+      size="small"
+      value={selectedTranscriptVariant}
+      onChange={(e) => setSelectedTranscriptVariant(e.target.value)}
       sx={{
-        height: "100%",
-        pl: 3,
-        ml: -3,
-        display: "flex",
-        alignItems: "center",
+        fontSize: "0.8125rem",
+        height: 34,
+        minWidth: 180,
+        fontFamily: '"DM Sans", sans-serif',
+        color: theme.palette.text.primary,
+        borderRadius: "6px",
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: theme.palette.divider,
+        },
+        "&:hover .MuiOutlinedInput-notchedOutline": {
+          borderColor: theme.palette.text.secondary,
+        },
+        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+          borderColor: theme.palette.primary.main,
+        },
       }}
     >
-      <Box
-        sx={{
-          width: "90%",
-          borderRadius: 2,
-          border: `1px solid ${theme.palette.divider}`,
-          background:
-            theme.palette.mode === "dark"
-              ? "rgba(255,255,255,0.02)"
-              : "rgba(0,0,0,0.02)",
-          overflow: "hidden",
-        }}
-      >
-        {/* ROW */}
-        {[
-          ["Total Duration", callDuration || "-"],
-          ["Silence Time", silenceTime || "-"],
-        ].map(([label, value], i) => (
-          <Box
-            key={label}
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              px: 2.5,
-              py: 1.4,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-            }}
-          >
-            <Typography sx={{ fontWeight: 600 }}>{label}</Typography>
-            <Typography>{value}</Typography>
-          </Box>
-        ))}
-
-        {/* Talk ratio heading */}
-        <Box
-          sx={{
-            px: 2.5,
-            py: 1.3,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-            fontWeight: 700,
-          }}
-        >
-          <Typography fontWeight={700}>Talk-Time Ratio</Typography>
-        </Box>
-
-        {/* Ratio rows */}
-      {Object.entries(talkRatio).length === 0 ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            px: 4.5,
-            py: 1.3,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-          }}
-        >
-          <Typography fontWeight={600} color="text.secondary">• Talk-Time Ratio</Typography>
-          <Typography>Not Applicable</Typography>
-        </Box>
-      ) : Object.entries(talkRatio).map(([k, v]) => (
-        <Box
-          key={k}
-          sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              px: 4.5, // indentation
-              py: 1.3,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-            }}
-        >
-          <Typography fontWeight={600} color="text.secondary">• {k}</Typography>
-          <Typography>{formatTalkRatioValue(v)}</Typography>
-        </Box>
-      ))}
-      </Box>
-    </Box>
-  </Grid>
-  
-              </Grid>
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* KEYWORDS + PROCESSING SAME ROW */}
-        <Grid item xs={12} md={6} sx={{ display: "flex" }}>
-    <Card sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
-            <CardContent sx={{ flex: 1 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Top Keywords
-              </Typography>
-
-              <Box sx={{ height: 320 }}>
-                <ReactECharts option={keywordBarOption} style={{ height: "100%" }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6} sx={{ display: "flex" }}>
-    <Card sx={{ width: "100%", display: "flex", flexDirection: "column" }}>
-            <CardContent
-    sx={{
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-    }}
-  >
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Processing Metrics
-              </Typography>
-
-              <TableContainer
-    sx={{
-      mt: 1,
-      flex: 1,
-      display: "flex",
-    }}
-  >
-    <Table size="small" sx={{ tableLayout: "fixed" }}>
-      <TableBody>
-
-        <TableRow>
-          
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Total Processing Time</TableCell>
-          
-          <TableCell sx={{fontSize: "0.95rem"}}>{proc.total_processing_time_sec?.toFixed(2)} sec</TableCell>
-        </TableRow>
-
-        <TableRow>
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Transcription Time</TableCell>
-          <TableCell sx={{fontSize: "0.95rem"}}>{proc.transcription_time_sec?.toFixed(2)} sec</TableCell>
-        </TableRow>
-
-        <TableRow>
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Analysis Time</TableCell>
-          <TableCell sx={{fontSize: "0.95rem"}}>{proc.analysis_time_sec?.toFixed(2)} sec</TableCell>
-        </TableRow>
-
-
-        <TableRow>
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Total Tokens</TableCell>
-          <TableCell sx={{fontSize: "0.95rem"}}>{llmUsage.total_tokens}</TableCell>
-        </TableRow>
-
-        <TableRow>
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Prompt Tokens</TableCell>
-          <TableCell sx={{fontSize: "0.95rem"}}>{llmUsage.prompt_tokens}</TableCell>
-        </TableRow>
-
-        <TableRow>
-          <TableCell sx={{
-      fontWeight: 600,
-      fontSize: "0.95rem",
-      color: theme.palette.text.primary,
-      borderBottom: `1px solid ${theme.palette.divider}`,
-      width: "55%",
-    }}>Output Tokens</TableCell>
-          <TableCell sx={{fontSize: "0.95rem"}}>{llmUsage.candidate_tokens}</TableCell>
-        </TableRow>
-
-      </TableBody>
-    </Table>
-  </TableContainer>
-
-            </CardContent>
-          </Card>
-        </Grid>
-
-      </Grid>
-    </Box>
+      {availableTranscriptVariants.includes("original") && (
+        <MenuItem sx={{ fontSize: "0.8125rem" }} value="original">
+          Original
+        </MenuItem>
+      )}
+      {availableTranscriptVariants.includes("en") && (
+        <MenuItem sx={{ fontSize: "0.8125rem" }} value="en">
+          English
+        </MenuItem>
+      )}
+    </Select>
   )}
 
-{/* ════════════════════════════════════════
-            TAB 6 — Ask AI
-        ════════════════════════════════════════ */}
+  {/* RIGHT: Search */}
+  <TextField
+    size="small"
+    placeholder="Search transcript…"
+    value={searchTerm}
+    onChange={(e) => setSearchTerm(e.target.value)}
+    sx={{
+      width: 220,
+      "& input": {
+        fontSize: "0.8125rem",
+        py: 0.6,
+      },
+    }}
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <SearchIcon sx={{ fontSize: 14, color: theme.palette.text.disabled }} />
+        </InputAdornment>
+      ),
+      endAdornment: searchTerm ? (
+        <InputAdornment position="end">
+          <IconButton
+            size="small"
+            onClick={() => setSearchTerm("")}
+            sx={{ p: 0.25 }}
+          >
+            <CloseIcon sx={{ fontSize: 13 }} />
+          </IconButton>
+        </InputAdornment>
+      ) : null,
+    }}
+  />
+</Box>
+
+              {/* Search navigation */}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    minWidth: 44, textAlign: "right",
+                    fontFamily: '"DM Mono", monospace',
+                    fontSize: "0.75rem",
+                    color: theme.palette.text.disabled,
+                  }}
+                >
+                  {transcriptMatches.length > 0
+                    ? `${searchMatchPointer + 1}/${transcriptMatches.length}`
+                    : "\u2014"}
+                </Typography>
+                <Tooltip title="Previous match" arrow>
+                  <span>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.4 }}
+                      onClick={gotoPrevSearchMatch}
+                      disabled={transcriptMatches.length === 0}
+                      aria-label="Previous match"
+                    >
+                      <KeyboardArrowUpIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip title="Next match" arrow>
+                  <span>
+                    <IconButton
+                      size="small"
+                      sx={{ p: 0.4 }}
+                      onClick={gotoNextSearchMatch}
+                      disabled={transcriptMatches.length === 0}
+                      aria-label="Next match"
+                    >
+                      <KeyboardArrowDownIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </Box>
+            </Box>
+
+            {/* Waveform player */}
+            <WaveformPlayer
+              ref={waveformPlayerRef}
+              audioSrc={audioSrc}
+              onTimeUpdate={handleTimeUpdate}
+            />
+
+            {/* Utterances list */}
+            <Box sx={{ flex: 1, overflowY: "auto", pr: 0.5, mt: 1.5 }}>
+              {isEmpty(utterances) ? (
+                <FieldEmpty message="No transcript is available for this recording" />
+              ) : (
+                utterances.map((u, i) => {
+                  const isActive = currentTime >= u.start && currentTime <= u.end;
+                  return (
+                    <Box
+                      key={i}
+                      id={`utt-${i}`}
+                      ref={isActive ? activeRef : null}
+                      onClick={() => waveformPlayerRef.current?.seekTo(u.start)}
+                      sx={{
+                        display: "flex",
+                        mb: 1.25,
+                        borderRadius: "6px",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        border: "1px solid",
+                        borderColor:
+                          i === activeSearchUtteranceIndex
+                            ? amber + "60"
+                            : isActive
+                            ? amber + "30"
+                            : theme.palette.divider,
+                        backgroundColor: isActive
+                          ? isDark ? amber + "08" : amber + "05"
+                          : theme.palette.background.paper,
+                        boxShadow:
+                          i === activeSearchUtteranceIndex
+                            ? `0 0 0 2px ${amber}50`
+                            : "none",
+                        transition: "all 0.15s ease",
+                        "&:hover": {
+                          borderColor: amber + "40",
+                          backgroundColor: isDark ? amber + "06" : amber + "03",
+                        },
+                      }}
+                    >
+                      {/* Speaker colour bar */}
+                      <Box
+                        sx={{
+                          width: 4,
+                          backgroundColor: getSpeakerColor(u.speaker_id),
+                          flexShrink: 0,
+                        }}
+                      />
+
+                      {/* Content */}
+                      <Box sx={{ p: 1.5, flex: 1, minWidth: 0 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontFamily: '"DM Mono", monospace',
+                              fontSize: "0.6875rem",
+                              color: theme.palette.text.disabled,
+                            }}
+                          >
+                            {formatTimestamp(u.start)}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              fontSize: "0.6875rem",
+                              fontWeight: 600,
+                              color: getSpeakerColor(u.speaker_id),
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            {formatSpeakerLabel(u.speaker_id, u.role)}
+                          </Typography>
+                        </Box>
+                        <Typography sx={{ fontSize: "0.875rem", lineHeight: 1.6 }}>
+                          {isEmpty(u.text) ? (
+                            <Box
+                              component="span"
+                              sx={{
+                                color: theme.palette.text.disabled,
+                                fontStyle: "italic",
+                                fontSize: "0.8125rem",
+                              }}
+                            >
+                              no speech detected
+                            </Box>
+                          ) : (
+                            highlightText(u.text)
+                          )}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })
+              )}
+            </Box>
+          </Box>
+        )}
+
+        {/* ════════════════ TAB 5 — Analytics ════════════════ */}
+        {tabValue === 5 && (
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>
+            <Grid container spacing={2.5}>
+
+              {/* Talk-time donut + metrics table */}
+              <Grid item xs={12}>
+                <Box
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "6px",
+                    p: 2.5,
+                    backgroundColor: theme.palette.background.paper,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.6875rem", fontWeight: 600,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      color: theme.palette.text.disabled, mb: 2,
+                    }}
+                  >
+                    Talk Time Analytics
+                  </Typography>
+
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={talkData.length > 8 ? 7 : 8}>
+                      <Box sx={{ height: 360 }}>
+                        <ReactECharts option={talkTimeOption} style={{ height: "100%" }} />
+                      </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={talkData.length > 8 ? 5 : 4}>
+                      <Box
+                        sx={{
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: "6px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <MetricRow label="Total Duration" value={callDuration || "\u2014"} />
+                        <MetricRow label="Silence Time"   value={silenceTime  || "\u2014"} />
+
+                        {/* Talk ratio heading */}
+                        <Box
+                          sx={{
+                            px: 2, py: 1,
+                            borderBottom: `1px solid ${theme.palette.divider}`,
+                            backgroundColor: isDark ? "#28261F" : "#F0ECE4",
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              fontSize: "0.6875rem", fontWeight: 600,
+                              letterSpacing: "0.08em", textTransform: "uppercase",
+                              color: theme.palette.text.disabled,
+                            }}
+                          >
+                            Talk-Time Ratio
+                          </Typography>
+                        </Box>
+
+                        {Object.entries(talkRatio).length === 0 ? (
+                          <MetricRow label="Talk-Time Ratio" value="Not Applicable" indent />
+                        ) : (
+                          Object.entries(talkRatio).map(([k, v]) => (
+                            <MetricRow
+                              key={k}
+                              label={k}
+                              value={formatTalkRatioValue(v)}
+                              indent
+                            />
+                          ))
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Grid>
+
+              {/* Keywords */}
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "6px",
+                    p: 2.5,
+                    backgroundColor: theme.palette.background.paper,
+                    height: "100%",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.6875rem", fontWeight: 600,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      color: theme.palette.text.disabled, mb: 2,
+                    }}
+                  >
+                    Top Keywords
+                  </Typography>
+                  <Box sx={{ height: 300 }}>
+                    <ReactECharts option={keywordBarOption} style={{ height: "100%" }} />
+                  </Box>
+                </Box>
+              </Grid>
+
+              {/* Processing metrics */}
+              <Grid item xs={12} md={6}>
+                <Box
+                  sx={{
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: "6px",
+                    p: 2.5,
+                    backgroundColor: theme.palette.background.paper,
+                    height: "100%",
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      fontSize: "0.6875rem", fontWeight: 600,
+                      letterSpacing: "0.08em", textTransform: "uppercase",
+                      color: theme.palette.text.disabled, mb: 2,
+                    }}
+                  >
+                    Processing Metrics
+                  </Typography>
+                  <Box
+                    sx={{
+                      border: `1px solid ${theme.palette.divider}`,
+                      borderRadius: "6px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <MetricRow
+                      label="Total Processing Time"
+                      value={proc.total_processing_time_sec != null ? `${proc.total_processing_time_sec.toFixed(2)}s` : "\u2014"}
+                    />
+                    <MetricRow
+                      label="Transcription Time"
+                      value={proc.transcription_time_sec != null ? `${proc.transcription_time_sec.toFixed(2)}s` : "\u2014"}
+                    />
+                    <MetricRow
+                      label="Analysis Time"
+                      value={proc.analysis_time_sec != null ? `${proc.analysis_time_sec.toFixed(2)}s` : "\u2014"}
+                    />
+                    <MetricRow label="Total Tokens"  value={llmUsage.total_tokens     ?? "\u2014"} />
+                    <MetricRow label="Prompt Tokens" value={llmUsage.prompt_tokens    ?? "\u2014"} />
+                    <MetricRow label="Output Tokens" value={llmUsage.candidate_tokens ?? "\u2014"} />
+                  </Box>
+                </Box>
+              </Grid>
+
+            </Grid>
+          </Box>
+        )}
+
+        {/* ════════════════ TAB 6 — Ask AI ════════════════ */}
         {tabValue === 6 && (
           <Box sx={{ p: { xs: 2, sm: 3 } }}>
             <AskAI assetId={assetId} fileName={analysis.filename} />
           </Box>
         )}
-                    
-        </Paper>
-      </Box>
-    );
-  };
 
-  export default Analysis;
+      </Paper>
+    </Box>
+  );
+};
 
-
-
-
+export default Analysis;

@@ -2,7 +2,7 @@ import React from 'react';
 import {
   Box, Drawer, List, ListItem, ListItemButton,
   ListItemIcon, ListItemText, Typography,
-  IconButton, Divider, useTheme, useMediaQuery, Tooltip,
+  IconButton, useTheme, useMediaQuery, Tooltip,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -14,13 +14,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-export const DRAWER_WIDTH_OPEN   = 240;
-export const DRAWER_WIDTH_CLOSED =  64;
+export const DRAWER_WIDTH_OPEN   = 220;
+export const DRAWER_WIDTH_CLOSED =  56;
 
 const menuItems = [
-  { text: 'Dashboard',       icon: <DashboardIcon />, path: '/dashboard' },
-  { text: 'Call Recordings', icon: <MicIcon />,       path: '/assets'    },
-  { text: 'Upload',          icon: <UploadIcon />,    path: '/upload'    },
+  { text: 'Dashboard',       icon: <DashboardIcon sx={{ fontSize: 17 }} />, path: '/dashboard' },
+  { text: 'Call Recordings', icon: <MicIcon        sx={{ fontSize: 17 }} />, path: '/assets'    },
+  { text: 'Upload',          icon: <UploadIcon     sx={{ fontSize: 17 }} />, path: '/upload'    },
 ];
 
 const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
@@ -28,8 +28,10 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-
   const isCollapsed = collapsed && !isMobile;
+
+  // Amber accent color
+  const amber = theme.palette.primary.main;
 
   const handleNav = (path) => {
     navigate(path);
@@ -39,90 +41,106 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
   const handleLogout = () => { onLogout(); navigate('/login'); };
 
   const drawerContent = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box sx={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
 
-      {/* ── Logo / Header row ── */}
-      <Box
-        sx={{
-          // Match the exact same horizontal padding as the nav list so icons line up
-          px: isCollapsed ? 0.5 : 1.5,
-          py: 1,
-          display: 'flex',
-          alignItems: 'center',
-          minHeight: 64,
-          // When collapsed: centre everything; when open: space-between
-          justifyContent: isCollapsed ? 'center' : 'space-between',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Logo icon — same 40 px footprint as the nav ListItemIcons */}
-        <Box
-          sx={{
-            // Keep icon centred in the same 40 px column the nav icons occupy
-            width: 40,
-            height: 40,
-            minWidth: 40,
-            flexShrink: 0,
-            borderRadius: 2,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
-          }}
-        >
-          <MicIcon sx={{ color: '#fff', fontSize: 20 }} />
-        </Box>
-
-        {/* App name — only visible when expanded */}
+      {/* ── Logo row ── */}
+      <Box sx={{
+        height: 56,
+        px: isCollapsed ? 1 : 2,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: isCollapsed ? 'center' : 'space-between',
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        flexShrink: 0,
+      }}>
         {!isCollapsed && (
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              whiteSpace: 'nowrap',
-              flexGrow: 1,
-              ml: 1.5,
-              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            CallAI
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+            {/* Wordmark logo */}
+            <Box sx={{
+              width: 28, height: 28,
+              borderRadius: '6px',
+              border: `1.5px solid ${amber}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <MicIcon sx={{ fontSize: 14, color: amber }} />
+            </Box>
+            <Typography sx={{
+              fontFamily: '"DM Serif Display", serif',
+              fontSize: '1.05rem',
+              fontWeight: 400,
+              letterSpacing: '-0.01em',
+              color: theme.palette.text.primary,
+              lineHeight: 1,
+            }}>
+              CallAI
+            </Typography>
+          </Box>
         )}
 
-        {/* Desktop collapse toggle */}
+        {isCollapsed && (
+          <Box sx={{
+            width: 28, height: 28,
+            borderRadius: '6px',
+            border: `1.5px solid ${amber}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <MicIcon sx={{ fontSize: 14, color: amber }} />
+          </Box>
+        )}
+
         {!isMobile && (
           <IconButton
             size="small"
             onClick={onToggleCollapse}
             sx={{
-              // Give it a fixed size so it never clips
-              flexShrink: 0,
-              color: 'text.secondary',
-              '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+              color: theme.palette.text.disabled,
+              p: 0.5,
+              '&:hover': { color: theme.palette.text.secondary },
             }}
           >
             {isCollapsed
-              ? <ChevronRightIcon fontSize="small" />
-              : <ChevronLeftIcon  fontSize="small" />
+              ? <ChevronRightIcon sx={{ fontSize: 16 }} />
+              : <ChevronLeftIcon  sx={{ fontSize: 16 }} />
             }
           </IconButton>
         )}
 
-        {/* Mobile close */}
         {isMobile && (
-          <IconButton size="small" onClick={onClose} sx={{ flexShrink: 0 }}>
-            <ChevronLeftIcon fontSize="small" />
+          <IconButton size="small" onClick={onClose}
+            sx={{ color: theme.palette.text.disabled }}>
+            <ChevronLeftIcon sx={{ fontSize: 16 }} />
           </IconButton>
         )}
       </Box>
 
-      <Divider sx={{ mx: isCollapsed ? 1 : 2, mb: 1 }} />
+      {/* ── Nav label ── */}
+      {!isCollapsed && (
+        <Box sx={{ px: 2, pt: 2.5, pb: 0.5 }}>
+          <Typography sx={{
+            fontSize: '0.625rem',
+            fontWeight: 600,
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase',
+            color: theme.palette.text.disabled,
+          }}>
+            Navigation
+          </Typography>
+        </Box>
+      )}
 
       {/* ── Nav items ── */}
-      <List sx={{ px: isCollapsed ? 0.5 : 1.5, py: 1, flexGrow: 1 }}>
+      <List sx={{
+        px: isCollapsed ? 0.75 : 1.25,
+        py: isCollapsed ? 1 : 0.5,
+        flexGrow: 1,
+        gap: 0,
+      }}>
         {menuItems.map((item) => {
           const isActive = location.pathname === item.path;
 
@@ -130,36 +148,38 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
             <ListItemButton
               onClick={() => handleNav(item.path)}
               sx={{
-                borderRadius: 2,
-                py: 1.3,
-                // Icon always centred in its 40 px column; text follows naturally
-                px: isCollapsed ? 0 : 1.5,
+                borderRadius: '5px',
+                py: 0.9,
+                px: isCollapsed ? 0 : 1.25,
                 justifyContent: isCollapsed ? 'center' : 'flex-start',
-                width: '100%',
-                minHeight: 44,
-                transition: 'all 0.2s ease',
-                bgcolor: isActive ? `${theme.palette.primary.main}18` : 'transparent',
-                borderLeft: !isCollapsed && isActive
-                  ? `3px solid ${theme.palette.primary.main}`
-                  : '3px solid transparent',
+                minHeight: 36,
+                gap: 0,
+                mb: 0.25,
+                backgroundColor: isActive
+                  ? `${amber}15`
+                  : 'transparent',
+                border: '1px solid',
+                borderColor: isActive
+                  ? `${amber}30`
+                  : 'transparent',
                 '&:hover': {
-                  bgcolor: isActive
-                    ? `${theme.palette.primary.main}28`
-                    : 'action.hover',
-                  transform: isCollapsed ? 'none' : 'translateX(3px)',
+                  backgroundColor: isActive
+                    ? `${amber}20`
+                    : theme.palette.action.hover,
+                  borderColor: isActive
+                    ? `${amber}40`
+                    : `${theme.palette.divider}`,
                 },
+                transition: 'all 0.12s ease',
               }}
             >
-              <ListItemIcon
-                sx={{
-                  color: isActive ? theme.palette.primary.main : 'text.secondary',
-                  minWidth: 40,
-                  width: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
+              <ListItemIcon sx={{
+                color: isActive ? amber : theme.palette.text.disabled,
+                minWidth: isCollapsed ? 0 : 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
                 {item.icon}
               </ListItemIcon>
 
@@ -167,20 +187,32 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
                 <ListItemText
                   primary={item.text}
                   primaryTypographyProps={{
-                    fontWeight: isActive ? 600 : 500,
+                    fontWeight: isActive ? 600 : 400,
                     fontSize: '0.875rem',
-                    color: isActive ? 'text.primary' : 'text.secondary',
+                    color: isActive
+                      ? theme.palette.text.primary
+                      : theme.palette.text.secondary,
+                    fontFamily: '"DM Sans", sans-serif',
                   }}
-                  sx={{ ml: 1 }}
                 />
+              )}
+
+              {/* Active dot indicator */}
+              {isActive && !isCollapsed && (
+                <Box sx={{
+                  width: 4, height: 4, borderRadius: '50%',
+                  backgroundColor: amber,
+                  flexShrink: 0,
+                  ml: 'auto',
+                }} />
               )}
             </ListItemButton>
           );
 
           return (
-            <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
+            <ListItem key={item.text} disablePadding>
               {isCollapsed
-                ? <Tooltip title={item.text} placement="right">{btn}</Tooltip>
+                ? <Tooltip title={item.text} placement="right" arrow>{btn}</Tooltip>
                 : btn
               }
             </ListItem>
@@ -188,74 +220,59 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
         })}
       </List>
 
-      <Divider sx={{ mx: isCollapsed ? 1 : 2, mt: 1 }} />
-
-      {/* ── Logout ── */}
-      <Box sx={{ px: isCollapsed ? 0.5 : 1.5, py: 1.5 }}>
+      {/* ── Bottom section ── */}
+      <Box sx={{
+        borderTop: `1px solid ${theme.palette.divider}`,
+        px: isCollapsed ? 0.75 : 1.25,
+        py: 1.25,
+      }}>
         {isCollapsed ? (
-          <Tooltip title="Logout" placement="right">
+          <Tooltip title="Logout" placement="right" arrow>
             <ListItemButton
               onClick={handleLogout}
               sx={{
-                borderRadius: 2,
-                justifyContent: 'center',
-                py: 1.3,
-                px: 0,
-                '&:hover': { bgcolor: `${theme.palette.error.main}20` },
+                borderRadius: '5px', justifyContent: 'center',
+                py: 0.9, px: 0, minHeight: 36,
+                '&:hover': { backgroundColor: 'rgba(224,82,82,0.1)' },
               }}
             >
-              <ListItemIcon
-                sx={{
-                  color: 'text.secondary',
-                  minWidth: 40,
-                  width: 40,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <LogoutIcon />
-              </ListItemIcon>
+              <LogoutIcon sx={{ fontSize: 17, color: theme.palette.text.disabled }} />
             </ListItemButton>
           </Tooltip>
         ) : (
           <ListItemButton
             onClick={handleLogout}
             sx={{
-              borderRadius: 2,
-              py: 1.3,
-              px: 1.5,
-              transition: 'all 0.2s ease',
-              '&:hover': { bgcolor: `${theme.palette.error.main}20` },
+              borderRadius: '5px', py: 0.9, px: 1.25,
+              minHeight: 36,
+              '&:hover': { backgroundColor: 'rgba(224,82,82,0.08)' },
+              transition: 'all 0.12s ease',
             }}
           >
-            <ListItemIcon
-              sx={{
-                color: 'text.secondary',
-                minWidth: 40,
-                width: 40,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <LogoutIcon />
+            <ListItemIcon sx={{
+              color: theme.palette.text.disabled,
+              minWidth: 30,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <LogoutIcon sx={{ fontSize: 17 }} />
             </ListItemIcon>
             <ListItemText
               primary="Logout"
-              primaryTypographyProps={{ fontWeight: 500, fontSize: '0.875rem', color: 'text.secondary' }}
-              sx={{ ml: 1 }}
+              primaryTypographyProps={{
+                fontWeight: 400,
+                fontSize: '0.875rem',
+                color: theme.palette.text.secondary,
+              }}
             />
           </ListItemButton>
         )}
       </Box>
-
     </Box>
   );
 
   return (
     <>
-      {/* Mobile */}
+      {/* Mobile drawer */}
       <Drawer
         variant="temporary"
         open={isMobile && open}
@@ -273,7 +290,7 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
         {drawerContent}
       </Drawer>
 
-      {/* Desktop — fixed, doesn't push layout */}
+      {/* Desktop permanent drawer */}
       <Drawer
         variant="permanent"
         sx={{
@@ -281,13 +298,10 @@ const Sidebar = ({ onLogout, open, onClose, collapsed, onToggleCollapse }) => {
           '& .MuiDrawer-paper': {
             width: collapsed ? DRAWER_WIDTH_CLOSED : DRAWER_WIDTH_OPEN,
             boxSizing: 'border-box',
-            borderRight: `1px solid ${theme.palette.divider}`,
-            boxShadow: 'none',
             overflowX: 'hidden',
-            transition: 'width 0.25s ease',
+            transition: 'width 0.2s ease',
             position: 'fixed',
-            top: 0,
-            left: 0,
+            top: 0, left: 0,
             height: '100vh',
           },
         }}
